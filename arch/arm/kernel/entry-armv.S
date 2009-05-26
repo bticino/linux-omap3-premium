@@ -1193,9 +1193,31 @@ __stubs_start:
  * other mode than FIQ...  Ok you can switch to another mode, but you can't
  * get out of that mode without clobbering one register.
  */
+/* ARub: try to use it instead (we won't leave FIQ mode anyway) */
 vector_fiq:
-	disable_fiq
+	ldr	r9,	1f
+	ldr	r9,	[r9]
+	movs	r9,	r9
+	beq	fiq_ret
+	mov	r8,	lr
+	mov	lr,	pc
+	mov	pc,	r9	/* jump to userptr */
+	mov	lr,	r8
+fiq_ret:
 	subs	pc, lr, #4
+fiq_savemm:
+	.long	0
+
+	
+	
+1:	.long	fiq_userptr
+	
+.section .text /* can't live here... */
+.globl	fiq_userptr
+fiq_userptr:
+	.long	0		/* This must save r0..r8 inclusive */
+.previous	
+
 
 /*=============================================================================
  * Address exception handler

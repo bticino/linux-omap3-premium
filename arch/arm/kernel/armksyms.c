@@ -49,6 +49,12 @@ extern void __aeabi_ulcmp(void);
 
 extern void fpundefinstr(void);
 
+/*
+ * for fiq support (code in entry-armv.S -- ARub)
+ */
+extern void (*fiq_userptr)(void);
+EXPORT_SYMBOL(fiq_userptr);
+
 
 EXPORT_SYMBOL(__backtrace);
 
