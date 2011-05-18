@@ -1156,5 +1156,12 @@ config RAMOOPS
 	  This enables panic and oops messages to be logged to a circular
 	  buffer in RAM where it can be read back at some later point.
 
+config ZL38005
+        tristate "ZL38005 Zarlink Support"
+        depends on SPI && SYSFS
+        help
+           This option enables device driver support for the Zarlink
+           acoustic echo cancellation device.
+
 endmenu
 
