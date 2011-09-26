@@ -33,6 +33,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 
 #include <linux/spi/spi.h>
 
@@ -240,6 +241,10 @@ static void omap2_mcspi_set_enable(const struct spi_device *spi, int enable)
 static void omap2_mcspi_force_cs(struct spi_device *spi, int cs_active)
 {
 	u32 l;
+
+	if (spi->chip_select_gpio) {
+		gpio_direction_output(spi->chip_select_gpio, !cs_active);
+	}
 
 	l = mcspi_cached_chconf0(spi);
 	MOD_REG_BIT(l, OMAP2_MCSPI_CHCONF_FORCE, cs_active);
@@ -976,8 +981,9 @@ static void omap2_mcspi_work(struct work_struct *work)
 			status = omap2_mcspi_setup_transfer(spi, NULL);
 		}
 
-		if (cs_active)
+		if (cs_active) {
 			omap2_mcspi_force_cs(spi, 0);
+		}
 
 		omap2_mcspi_set_enable(spi, 0);
 

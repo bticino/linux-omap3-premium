@@ -71,6 +71,7 @@ struct spi_device {
 	struct spi_master	*master;
 	u32			max_speed_hz;
 	u8			chip_select;
+	u8			chip_select_gpio;
 	u8			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
 #define	SPI_CPOL	0x02			/* clock polarity */
@@ -740,6 +741,7 @@ struct spi_board_info {
 	 */
 	u16		bus_num;
 	u16		chip_select;
+	u16		chip_select_gpio;
 
 	/* mode becomes spi_device.mode, and is essential for chips
 	 * where the default of SPI_CS_HIGH = 0 is wrong.
