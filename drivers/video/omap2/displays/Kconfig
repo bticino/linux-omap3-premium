@@ -44,4 +44,11 @@ config PANEL_ACX565AKM
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  This is the LCD panel used on Nokia N900
+
+config PANEL_CPT_CLAA102NA0DCW
+        tristate "CPT CLAA102NA0DCW Panel"
+        depends on OMAP2_DSS
+        help
+          LCD panel driver for CPT CLAA102NA0DCW
+
 endmenu
