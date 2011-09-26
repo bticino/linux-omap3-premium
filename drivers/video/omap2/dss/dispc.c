@@ -721,6 +721,12 @@ static void _dispc_setup_color_conv_coef(void)
 
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(0), ct->full_range, 11, 11);
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(1), ct->full_range, 11, 11);
+
+#ifdef CONFIG_PANEL_CPT_CLAA102NA0DCW
+	/* COLOR PHASE ROTATION - par.7.4.2.5.1 */
+	REG_FLD_MOD(DISPC_CONFIG, 1, 15, 15);
+#endif
+
 }
 
 
@@ -2316,7 +2322,6 @@ void dispc_dump_irqs(struct seq_file *s)
 void dispc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dispc_read_reg(r))
-
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	DUMPREG(DISPC_REVISION);
@@ -3111,6 +3116,15 @@ int dispc_init(void)
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	enable_clocks(0);
+
+#ifdef CONFIG_PANEL_CPT_CLAA102NA0DCW
+	printk("DISPC_CPR_COEF R,G,B\n");
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dispc_write_reg(DISPC_CPR_COEF_R, 0x10000000);
+	dispc_write_reg(DISPC_CPR_COEF_G, 0x00020000);
+	dispc_write_reg(DISPC_CPR_COEF_B, 0x00000040);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+#endif
 
 	return 0;
 }
