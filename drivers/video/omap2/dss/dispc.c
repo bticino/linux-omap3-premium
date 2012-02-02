@@ -722,7 +722,7 @@ static void _dispc_setup_color_conv_coef(void)
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(0), ct->full_range, 11, 11);
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(1), ct->full_range, 11, 11);
 
-#ifdef CONFIG_PANEL_CPT_CLAA102NA0DCW
+#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
 	/* COLOR PHASE ROTATION - par.7.4.2.5.1 */
 	REG_FLD_MOD(DISPC_CONFIG, 1, 15, 15);
 #endif
@@ -3117,7 +3117,7 @@ int dispc_init(void)
 
 	enable_clocks(0);
 
-#ifdef CONFIG_PANEL_CPT_CLAA102NA0DCW
+#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
 	printk("DISPC_CPR_COEF R,G,B\n");
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 	dispc_write_reg(DISPC_CPR_COEF_R, 0x10000000);
