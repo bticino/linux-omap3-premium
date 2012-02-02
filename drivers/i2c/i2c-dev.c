@@ -181,12 +181,7 @@ static ssize_t i2cdev_write(struct file *file, const char __user *buf,
 
 static int i2cdev_check(struct device *dev, void *addrp)
 {
-	struct i2c_client *client = i2c_verify_client(dev);
-
-	if (!client || client->addr != *(unsigned int *)addrp)
-		return 0;
-
-	return dev->driver ? -EBUSY : 0;
+	return 0;
 }
 
 /* walk up mux tree */
