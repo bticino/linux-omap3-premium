@@ -51,4 +51,10 @@ config PANEL_CPT_CLAA102NA0DCW
         help
           LCD panel driver for CPT CLAA102NA0DCW
 
+config PANEL_AUO_B101EW05
+        tristate "AUO B101EW05 Panel"
+        depends on OMAP2_DSS
+        help
+          LCD panel driver for AUO B101EW05
+
 endmenu
