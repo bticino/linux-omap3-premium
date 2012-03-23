@@ -989,7 +989,8 @@ static void usb_gpio_settings(void)
 {
 	unsigned char val;
 
-	if (get_omap3_evm_rev() < OMAP3EVM_BOARD_GEN_2)
+//	TODO: da mettere nei platform data
+//	if (get_omap3_evm_rev() < OMAP3EVM_BOARD_GEN_2)
 		return;
 
 	/* Enable TWL GPIO Module */
