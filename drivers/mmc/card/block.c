@@ -581,6 +581,15 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	struct mmc_blk_data *md;
 	int devidx, ret;
 
+#ifdef CONFIG_MMC_BLOCK_TRY_HOST_ID_ASSOCIATION
+	/* On newer kernels try to look at commit
+	 * f06c9153f5ecd47dfed23f87b9d08e42ff0e4170 for a (better)
+	 * implementation...
+	 */
+	if (!test_bit(card->host->index, dev_use))
+		devidx = card->host->index;
+	else
+#endif
 	devidx = find_first_zero_bit(dev_use, max_devices);
 	if (devidx >= max_devices)
 		return ERR_PTR(-ENOSPC);

@@ -49,6 +49,26 @@ config MMC_BLOCK_BOUNCE
 
 	  If unsure, say Y here.
 
+config MMC_BLOCK_TRY_HOST_ID_ASSOCIATION
+	bool "Try to associate the host id with the block device id"
+	depends on MMC_BLOCK
+	default n
+	help
+	  By default the block device id is assigned starting from
+	  0 so, if you have multiple SD/MMC controllers, it may happens
+	  that attached to the controlled mmc1 you find the mmcblk0!
+	  Usually this happens each time you have a card into the
+	  controller mmc1 while the controller mmc0 is empty.
+
+	  Say Y here to try forcing association with the host id and
+	  the block device id. That is, in the example above, you'll get
+	  the mmcblk1 device is attached to the mmc1 controller.
+
+	  Note that if such association is not possible, the system will
+	  choose the first available id.
+
+	  If unsure, say N here.
+
 config SDIO_UART
 	tristate "SDIO UART/GPS class support"
 	help
