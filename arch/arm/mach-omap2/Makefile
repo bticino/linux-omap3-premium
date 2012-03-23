@@ -195,6 +195,8 @@ obj-$(CONFIG_MACH_OVERO)		+= board-overo.o \
 obj-$(CONFIG_MACH_OMAP3EVM)		+= board-omap3evm.o \
 					   hsmmc.o \
 					   board-flash.o
+obj-$(CONFIG_MACH_OMAP3_BAIA)		+= board-omap3baia.o \
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_3430SDP)		+= board-3430sdp.o \
@@ -280,4 +282,9 @@ endif
 ifeq ($(CONFIG_MACH_OMAP3EVM),y)
 evm-camera-$(CONFIG_VIDEO_OMAP3)	:= board-omap3evm-camera.o
 obj-y					+= $(evm-camera-m) $(evm-camera-y)
+endif
+
+ifeq ($(CONFIG_MACH_OMAP3_BAIA),y)
+evm-camera-$(CONFIG_VIDEO_OMAP3)	:= board-omap3baia-camera.o
+obj-y					+= $(baia-camera-m) $(baia-camera-y)
 endif

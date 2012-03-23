@@ -173,4 +173,10 @@ u8 get_omap3_evm_rev(void);
 #else
 #define get_omap3_evm_rev() (-EINVAL)
 #endif
+/* OMAP3BAIA revision */
+#if defined(CONFIG_MACH_OMAP3_BAIA)
+u8 get_omap3_baia_rev(void);
+#else
+#define get_omap3_baia_rev() (-EINVAL)
+#endif
 #endif
