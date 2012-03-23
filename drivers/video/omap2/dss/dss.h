@@ -385,6 +385,12 @@ void dispc_enable_trans_key(enum omap_channel ch, bool enable);
 void dispc_enable_alpha_blending(enum omap_channel ch, bool enable);
 bool dispc_trans_key_enabled(enum omap_channel ch);
 bool dispc_alpha_blending_enabled(enum omap_channel ch);
+void dispc_cpr_rr_set(u32 val);
+u32  dispc_cpr_rr_get(void);
+void dispc_cpr_gg_set(u32 val);
+u32  dispc_cpr_gg_get(void);
+void dispc_cpr_bb_set(u32 val);
+u32  dispc_cpr_bb_get(void);
 
 bool dispc_lcd_timings_ok(struct omap_video_timings *timings);
 void dispc_set_lcd_timings(struct omap_video_timings *timings);

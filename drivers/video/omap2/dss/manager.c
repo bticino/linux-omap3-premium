@@ -275,6 +275,111 @@ static ssize_t manager_alpha_blending_enabled_store(
 	return size;
 }
 
+static ssize_t manager_cpr_rr_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dispc_cpr_rr_get());
+}
+
+static ssize_t manager_cpr_rr_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	struct omap_overlay_manager_info info;
+	int enable = 0;
+	int r;
+	int v, v1;
+
+	if (sscanf(buf, "%d", &v) > 1) {
+		return -EINVAL;
+	}
+	dispc_cpr_rr_set(v);
+
+// TODO change below in the right way
+	mgr->get_manager_info(mgr, &info);
+
+	info.alpha_enabled = enable ? true : false;
+
+	r = mgr->set_manager_info(mgr, &info);
+	if (r)
+		return r;
+
+	r = mgr->apply(mgr);
+	if (r)
+		return r;
+	return size;
+}
+
+static ssize_t manager_cpr_gg_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dispc_cpr_gg_get());
+}
+
+static ssize_t manager_cpr_gg_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	struct omap_overlay_manager_info info;
+	int enable = 0;
+	int r;
+	int v, v1;
+
+	if (sscanf(buf, "%d", &v) > 1) {
+		return -EINVAL;
+	}
+	dispc_cpr_gg_set(v);
+
+// TODO change below in the right way
+	mgr->get_manager_info(mgr, &info);
+
+	info.alpha_enabled = enable ? true : false;
+
+	r = mgr->set_manager_info(mgr, &info);
+	if (r)
+		return r;
+
+	r = mgr->apply(mgr);
+	if (r)
+		return r;
+	return size;
+}
+
+static ssize_t manager_cpr_bb_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dispc_cpr_bb_get());
+}
+
+static ssize_t manager_cpr_bb_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	struct omap_overlay_manager_info info;
+	int enable = 0;
+	int r;
+	int v, v1;
+
+	if (sscanf(buf, "%d", &v) > 1) {
+		return -EINVAL;
+	}
+	dispc_cpr_bb_set(v);
+
+// TODO change below in the right way
+	mgr->get_manager_info(mgr, &info);
+
+	info.alpha_enabled = enable ? true : false;
+
+	r = mgr->set_manager_info(mgr, &info);
+	if (r)
+		return r;
+
+	r = mgr->apply(mgr);
+	if (r)
+		return r;
+	return size;
+}
+
 struct manager_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct omap_overlay_manager *, char *);
@@ -300,7 +405,15 @@ static MANAGER_ATTR(trans_key_enabled, S_IRUGO|S_IWUSR,
 static MANAGER_ATTR(alpha_blending_enabled, S_IRUGO|S_IWUSR,
 		manager_alpha_blending_enabled_show,
 		manager_alpha_blending_enabled_store);
-
+static MANAGER_ATTR(cpr_rr, S_IRUGO|S_IWUSR,
+		manager_cpr_rr_show,
+		manager_cpr_rr_store);
+static MANAGER_ATTR(cpr_gg, S_IRUGO|S_IWUSR,
+		manager_cpr_gg_show,
+		manager_cpr_gg_store);
+static MANAGER_ATTR(cpr_bb, S_IRUGO|S_IWUSR,
+		manager_cpr_bb_show,
+		manager_cpr_bb_store);
 
 static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_name.attr,
@@ -310,6 +423,9 @@ static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_trans_key_value.attr,
 	&manager_attr_trans_key_enabled.attr,
 	&manager_attr_alpha_blending_enabled.attr,
+	&manager_attr_cpr_rr.attr,
+	&manager_attr_cpr_gg.attr,
+	&manager_attr_cpr_bb.attr,
 	NULL
 };
 

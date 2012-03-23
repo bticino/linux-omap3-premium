@@ -41,6 +41,13 @@
 #include "dss.h"
 #include "dss_features.h"
 
+#define HW_BAIA_FIRST_VER
+#define HW_BAIA_VER1_DISPC_CPR_COEF_R 0x10000000
+#define HW_BAIA_VER1_DISPC_CPR_COEF_G 0x00020000
+#define HW_BAIA_VER1_DISPC_CPR_COEF_B 0x00000040
+
+static inline void enable_clocks(bool enable);
+
 /* DISPC */
 #define DISPC_BASE			0x48050400
 
@@ -93,6 +100,13 @@ struct dispc_reg { u16 idx; };
 #define DISPC_CPR_COEF_R		DISPC_REG(0x0220)
 #define DISPC_CPR_COEF_G		DISPC_REG(0x0224)
 #define DISPC_CPR_COEF_B		DISPC_REG(0x0228)
+
+#define DISPC_CPR_COEF_R_RR_MAX		(31)
+#define DISPC_CPR_COEF_R_RR_MIN		(22)
+#define DISPC_CPR_COEF_G_GG_MAX		(20)
+#define DISPC_CPR_COEF_G_GG_MIN		(11)
+#define DISPC_CPR_COEF_B_BB_MAX		(9)
+#define DISPC_CPR_COEF_B_BB_MIN		(0)
 
 #define DISPC_GFX_PRELOAD		DISPC_REG(0x022C)
 
@@ -207,6 +221,71 @@ static inline u32 dispc_read_reg(const struct dispc_reg idx)
 	dispc.ctx[(DISPC_##reg).idx / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
 #define RR(reg) \
 	dispc_write_reg(DISPC_##reg, dispc.ctx[(DISPC_##reg).idx / sizeof(u32)])
+
+void _dispc_cpr_set(u32 val, const struct dispc_reg cpr_reg, u32 max, u32 min)
+{
+	enable_clocks(1);
+	REG_FLD_MOD(cpr_reg, val, max, min);
+	enable_clocks(0);
+	dispc_go(OMAP_DSS_CHANNEL_LCD);
+}
+
+u32 _dispc_cpr_get(const struct dispc_reg cpr_reg, u32 max, u32 min)
+{
+	int val;
+
+	enable_clocks(1);
+	val = REG_GET(cpr_reg, max, min);
+	enable_clocks(0);
+	return val;
+}
+
+void dispc_cpr_rr_set(u32 val)
+{
+	_dispc_cpr_set(val, DISPC_CPR_COEF_R,
+		    DISPC_CPR_COEF_R_RR_MAX,
+		    DISPC_CPR_COEF_R_RR_MIN);
+}
+
+u32 dispc_cpr_rr_get(void)
+{
+	return _dispc_cpr_get(DISPC_CPR_COEF_R,
+			      DISPC_CPR_COEF_R_RR_MAX,
+			      DISPC_CPR_COEF_R_RR_MIN);
+}
+
+void dispc_cpr_gg_set(u32 val)
+{
+	_dispc_cpr_set(val, DISPC_CPR_COEF_G,
+		    DISPC_CPR_COEF_G_GG_MAX,
+		    DISPC_CPR_COEF_G_GG_MIN);
+}
+
+u32 dispc_cpr_gg_get(void)
+{
+	return _dispc_cpr_get(DISPC_CPR_COEF_G,
+			      DISPC_CPR_COEF_G_GG_MAX,
+			      DISPC_CPR_COEF_G_GG_MIN);
+}
+
+void dispc_cpr_bb_set(u32 val)
+{
+	_dispc_cpr_set(val, DISPC_CPR_COEF_B,
+		    DISPC_CPR_COEF_B_BB_MAX,
+		    DISPC_CPR_COEF_B_BB_MIN);
+}
+
+u32 dispc_cpr_bb_get(void)
+{
+	return _dispc_cpr_get(DISPC_CPR_COEF_B,
+			      DISPC_CPR_COEF_B_BB_MAX,
+			      DISPC_CPR_COEF_B_BB_MIN);
+}
+
+u32 dispc_dither(void)
+{
+	return 0;
+}
 
 void dispc_save_context(void)
 {
@@ -2460,7 +2539,6 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_VID_PRELOAD(1));
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
-#undef DUMPREG
 }
 
 static void _dispc_set_pol_freq(bool onoff, bool rf, bool ieo, bool ipc,
@@ -3112,6 +3190,8 @@ int dispc_init(void)
 	dispc_save_context();
 
 	rev = dispc_read_reg(DISPC_REVISION);
+printk("DISPC %s - %d\n", __func__, __LINE__);
+
 	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
@@ -3120,9 +3200,9 @@ int dispc_init(void)
 #if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
 	printk("DISPC_CPR_COEF R,G,B\n");
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
-	dispc_write_reg(DISPC_CPR_COEF_R, 0x10000000);
-	dispc_write_reg(DISPC_CPR_COEF_G, 0x00020000);
-	dispc_write_reg(DISPC_CPR_COEF_B, 0x00000040);
+	dispc_write_reg(DISPC_CPR_COEF_R, HW_BAIA_VER1_DISPC_CPR_COEF_R);
+	dispc_write_reg(DISPC_CPR_COEF_G, HW_BAIA_VER1_DISPC_CPR_COEF_G);
+	dispc_write_reg(DISPC_CPR_COEF_B, HW_BAIA_VER1_DISPC_CPR_COEF_B);
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 #endif
 
