@@ -47,6 +47,8 @@ static int def_vrfb;
 static int def_rotate;
 static int def_mirror;
 
+#define DEBUG
+
 #ifdef DEBUG
 unsigned int omapfb_debug;
 module_param_named(debug, omapfb_debug, bool, 0644);
@@ -1209,6 +1211,7 @@ static int _setcolreg(struct fb_info *fbi, u_int regno, u_int red, u_int green,
 	struct fb_var_screeninfo *var = &fbi->var;
 	int r = 0;
 
+	// TODO non ha moltoo senso lo switch dopo
 	enum omapfb_color_format mode = OMAPFB_COLOR_RGB24U; /* XXX */
 
 	/*switch (plane->color_mode) {*/
