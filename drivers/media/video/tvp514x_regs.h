@@ -29,6 +29,8 @@
 #ifndef _TVP514X_REGS_H
 #define _TVP514X_REGS_H
 
+#include "tvp51xx.h"
+
 /*
  * TVP5146/47 registers
  */
