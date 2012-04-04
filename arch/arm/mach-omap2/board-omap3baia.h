@@ -1,6 +1,8 @@
 #ifndef _INCLUDE_BOARDOMAP3BAIA_H_
 #define _INCLUDE_BOARDOMAP3BAIA_H_
 
+#define VER2_MOD 1
+
 #define OMAP3_BAIA_TS_GPIO			(108)
 #define OMAP3_BAIA_LED_BACKLIGHT		(0)
 #define OMAP3_BAIA_KS8851_MLL_GPIO_IRQ		(22)
@@ -15,6 +17,12 @@
 #define OMAP3_BAIA_ABIL_DEM_HIFI1V8		(61)
 #define OMAP3_BAIA_ABIL_SOURCE_IP1V8		(59)
 #define OMAP3_BAIA_ABIL_DEM_VIDEO1V8		(73)
+
+#ifdef VER2_MOD /* need for having pwm working */
+#define OMAP3_BAIA_BLUETOOTH_RESET_1V8		(10)
+#else
+#define OMAP3_BAIA_BLUETOOTH_RESET_1V8		(198)
+#endif
 
 /* DM3730 - $I1859
 PIN 'DSS_D11/SDI_DAT1P/GPIO_81' is connected to NET 'DSS_D[11]'
