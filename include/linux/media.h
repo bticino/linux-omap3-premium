@@ -41,23 +41,37 @@ struct media_device_info {
 };
 
 #define MEDIA_ENTITY_ID_FLAG_NEXT		(1 << 31)
+#define MEDIA_ENT_ID_FLAG_NEXT          (1 << 31)
 
 #define MEDIA_ENTITY_TYPE_SHIFT			16
 #define MEDIA_ENTITY_TYPE_MASK			0x00ff0000
 #define MEDIA_ENTITY_SUBTYPE_MASK		0x0000ffff
+#define MEDIA_ENT_TYPE_SHIFT            16
+#define MEDIA_ENT_TYPE_MASK             0x00ff0000
+#define MEDIA_ENT_SUBTYPE_MASK          0x0000ffff
 
 #define MEDIA_ENTITY_TYPE_DEVNODE		(1 << MEDIA_ENTITY_TYPE_SHIFT)
 #define MEDIA_ENTITY_TYPE_DEVNODE_V4L		(MEDIA_ENTITY_TYPE_DEVNODE + 1)
 #define MEDIA_ENTITY_TYPE_DEVNODE_FB		(MEDIA_ENTITY_TYPE_DEVNODE + 2)
 #define MEDIA_ENTITY_TYPE_DEVNODE_ALSA		(MEDIA_ENTITY_TYPE_DEVNODE + 3)
 #define MEDIA_ENTITY_TYPE_DEVNODE_DVB		(MEDIA_ENTITY_TYPE_DEVNODE + 4)
+#define MEDIA_ENT_T_DEVNODE             (1 << MEDIA_ENT_TYPE_SHIFT)
+#define MEDIA_ENT_T_DEVNODE_V4L         (MEDIA_ENT_T_DEVNODE + 1)
+#define MEDIA_ENT_T_DEVNODE_FB          (MEDIA_ENT_T_DEVNODE + 2)
+#define MEDIA_ENT_T_DEVNODE_ALSA        (MEDIA_ENT_T_DEVNODE + 3)
+#define MEDIA_ENT_T_DEVNODE_DVB         (MEDIA_ENT_T_DEVNODE + 4)
 
 #define MEDIA_ENTITY_TYPE_V4L2_SUBDEV		(2 << MEDIA_ENTITY_TYPE_SHIFT)
 #define MEDIA_ENTITY_TYPE_V4L2_SUBDEV_SENSOR	(MEDIA_ENTITY_TYPE_V4L2_SUBDEV + 1)
 #define MEDIA_ENTITY_TYPE_V4L2_SUBDEV_FLASH	(MEDIA_ENTITY_TYPE_V4L2_SUBDEV + 2)
 #define MEDIA_ENTITY_TYPE_V4L2_SUBDEV_LENS	(MEDIA_ENTITY_TYPE_V4L2_SUBDEV + 3)
+#define MEDIA_ENT_T_V4L2_SUBDEV         (2 << MEDIA_ENT_TYPE_SHIFT)
+#define MEDIA_ENT_T_V4L2_SUBDEV_SENSOR  (MEDIA_ENT_T_V4L2_SUBDEV + 1)
+#define MEDIA_ENT_T_V4L2_SUBDEV_FLASH   (MEDIA_ENT_T_V4L2_SUBDEV + 2)
+#define MEDIA_ENT_T_V4L2_SUBDEV_LENS    (MEDIA_ENT_T_V4L2_SUBDEV + 3)
 
 #define MEDIA_ENTITY_FLAG_DEFAULT		(1 << 0)
+#define MEDIA_ENT_FL_DEFAULT            (1 << 0)
 
 struct media_entity_desc {
 	__u32 id;
@@ -96,6 +110,8 @@ struct media_entity_desc {
 
 #define MEDIA_PAD_FLAG_INPUT			(1 << 0)
 #define MEDIA_PAD_FLAG_OUTPUT			(1 << 1)
+#define MEDIA_PAD_FL_SINK               (1 << 0)
+#define MEDIA_PAD_FL_SOURCE             (1 << 1)
 
 struct media_pad_desc {
 	__u32 entity;		/* entity ID */
@@ -107,6 +123,9 @@ struct media_pad_desc {
 #define MEDIA_LINK_FLAG_ENABLED			(1 << 0)
 #define MEDIA_LINK_FLAG_IMMUTABLE		(1 << 1)
 #define MEDIA_LINK_FLAG_DYNAMIC			(1 << 2)
+#define MEDIA_LNK_FL_ENABLED            (1 << 0)
+#define MEDIA_LNK_FL_IMMUTABLE          (1 << 1)
+#define MEDIA_LNK_FL_DYNAMIC            (1 << 2)
 
 struct media_link_desc {
 	struct media_pad_desc source;
