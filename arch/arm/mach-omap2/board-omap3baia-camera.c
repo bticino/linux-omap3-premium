@@ -54,42 +54,23 @@ static void omap3baia_set_mux(enum omap3baia_cam_mux mux_id)
 	printk("%s-%d TODO set mux\n", __func__, __LINE__);
 }
 
-static struct tda9885_platform_data tda9885_defaults = {
+static struct tda9885_platform_data omap3baia_tda9885_platform_data = {
 	.switching_mode = 0xf2,
 	.adjust_mode = 0xd0,
 	.data_mode = 0x0b,
-//	.power = ABIL_DEM_VIDEO,
 };
 
 /* TVP5150: Video Decoder */
-
-/*
-TODO : not present nothing in
-include/media/tvp5150.h
-
-static int omap3baia_tvp515x_s_power(struct v4l2_subdev *subdev, u32 on)
-{
-//	omap3baia_set_mux(MUX_EN_TVP5146);
-	printk("%s-%d TODO POWERON\n", __func__, __LINE__);
-
-	return 0;
-}
-
-static struct tvp515x_platform_data omap3baia_tvp515x_platform_data = {
-	.s_power		= omap3baia_tvp515x_s_power,
-};
-*/
 
 #define TVP515X_I2C_BUS_NUM		2
 
 static struct i2c_board_info omap3baia_camera_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("tvp5150", 0x5d),
-//		.platform_data	= &omap3baia_tvp515x_platform_data,
 	},
 	{
 		I2C_BOARD_INFO("tda9885", 0x43),
-//		.platform_data	= &omap3baia_tvp515x_platform_data,
+		.platform_data	= &omap3baia_tda9885_platform_data,
 	},
 };
 
@@ -108,7 +89,7 @@ static struct isp_v4l2_subdevs_group omap3baia_camera_subdevs[] = {
 		.bus		= {
 			.parallel	= {
 				.width			= 8,
-				.data_lane_shift	= 1,
+				.data_lane_shift	= 0,
 				.clk_pol		= 0,
 				.hdpol			= 0,
 				.vdpol			= 1,
@@ -127,9 +108,7 @@ static struct isp_platform_data omap3baia_isp_platform_data = {
 
 static int __init omap3baia_cam_init(void)
 {
-	int ret = 0;
-
-	printk("%s-%d TODO  11 res poweron\n", __func__, __LINE__);
+	printk("%s-%d TODO poweron\n", __func__, __LINE__);
 
 	omap3_init_camera(&omap3baia_isp_platform_data);
 
@@ -146,6 +125,6 @@ static void __exit omap3baia_cam_exit(void)
 module_init(omap3baia_cam_init);
 module_exit(omap3baia_cam_exit);
 
-MODULE_AUTHOR("Texas Instruments");
+MODULE_AUTHOR("BTicino S.p.A.");
 MODULE_DESCRIPTION("omap3baia Camera Module");
 MODULE_LICENSE("GPL");

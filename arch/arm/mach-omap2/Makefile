@@ -285,6 +285,6 @@ obj-y					+= $(evm-camera-m) $(evm-camera-y)
 endif
 
 ifeq ($(CONFIG_MACH_OMAP3_BAIA),y)
-evm-camera-$(CONFIG_VIDEO_OMAP3)	:= board-omap3baia-camera.o
+baia-camera-$(CONFIG_VIDEO_OMAP3)	:= board-omap3baia-camera.o
 obj-y					+= $(baia-camera-m) $(baia-camera-y)
 endif
