@@ -58,9 +58,9 @@
 static u8 omap3_baia_version;
 
 /* For testing purpose with different hardware */
-static unsigned int baia_lcd = -1;
+static unsigned int baia_lcd = 0;
 module_param(baia_lcd, uint, S_IRUGO);
-MODULE_PARM_DESC(baia_lcd, "LCD: 0:AMPIRE, 1:AUO");
+MODULE_PARM_DESC(baia_lcd, "LCD: 0:AMPIRE (default), 1:AUO");
 
 /* BOARD: reading revision */
 u8 get_omap3_baia_rev(void)
@@ -412,7 +412,7 @@ static struct omap2_hsmmc_info mmc[] = {
         {
 		.name		= "eMMC",
                 .mmc            = 2,
-                .caps           = MMC_CAP_8_BIT_DATA,
+                .caps           = MMC_CAP_4_BIT_DATA,
                 .gpio_cd        = -EINVAL,
                 .gpio_wp        = -EINVAL,
                 .nonremovable   = true,
@@ -656,9 +656,6 @@ static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	},
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
-	},
-	{
-		I2C_BOARD_INFO("tda9885", 0x43), /* TODO move to correct place */
 	},
 };
 
