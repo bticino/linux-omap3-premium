@@ -16,6 +16,7 @@
 #define OMAP3_BAIA_SDCARD_CD			(192)  /* trough TPS65930 */
 #define OMAP3_BAIA_ABIL_DEM_HIFI1V8		(61)
 #define OMAP3_BAIA_ABIL_SOURCE_IP1V8		(59)
+#define OMAP3_BAIA_EEPROM_WP			(72)
 #define OMAP3_BAIA_ABIL_DEM_VIDEO1V8		(73)
 
 #ifdef VER2_MOD /* need for having pwm working */

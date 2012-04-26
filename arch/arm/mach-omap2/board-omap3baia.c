@@ -637,10 +637,20 @@ static struct twl4030_platform_data omap3_baia_twldata = {
 	.vsim           = &omap3baia_vsim,
 };
 
+/*
+wp_set: set/unset the at24 eeprom write protect
+*/
+void wp_set(int enable)
+{
+        gpio_set_value(OMAP3_BAIA_EEPROM_WP, enable);
+}
+
 static struct at24_platform_data eeprom_info = {
         .byte_len       = (256*1024) / 8,
         .page_size      = 64,
         .flags          = AT24_FLAG_ADDR16,
+	.wpset		= wp_set,
+	.wppol		= 0,
 };
 
 static struct i2c_board_info __initdata omap3_baia_twl_i2c_boardinfo[] = {
@@ -805,6 +815,9 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(MCBSP3_CLKX, OMAP_MUX_MODE1 | OMAP_PIN_OFF_NONE), /* uart2_tx */
 	OMAP3_MUX(MCBSP3_FSX, OMAP_MUX_MODE1 | OMAP_PIN_INPUT), /* uart2_rx */
 
+	/* AT24 EEPROM WP - GPIO 72 */
+	OMAP3_MUX(DSS_DATA2, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 #else
@@ -819,6 +832,8 @@ static struct omap_musb_board_data musb_board_data = {
 
 static void __init omap3_baia_init(void)
 {
+	int ret;
+
 	omap3_baia_get_revision();
 
 	if (cpu_is_omap3630()) {
@@ -873,6 +888,12 @@ static void __init omap3_baia_init(void)
 	 * TODO CHECK:
 	 * ds1803 must be checked after the LCD is powered up ?
 	 */
+
+	ret = gpio_request(OMAP3_BAIA_EEPROM_WP, "AT24 WP enable");
+	if (ret)
+		printk(KERN_ERR "unable to request AT24 WP enable!\n");
+	gpio_direction_output(OMAP3_BAIA_EEPROM_WP, 1);
+
 	omap3_baia_i2c_init();
 }
 
