@@ -204,6 +204,9 @@ enum {
 	/* module tda9840: just ident 9840 */
 	V4L2_IDENT_TDA9840 = 9840,
 
+	/* module tda9885: just ident 9885 */
+	V4L2_IDENT_TDA9885 = 9841,
+
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
 
