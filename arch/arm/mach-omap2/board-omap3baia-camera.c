@@ -58,6 +58,7 @@ static struct tda9885_platform_data omap3baia_tda9885_platform_data = {
 	.switching_mode = 0xf2,
 	.adjust_mode = 0xd0,
 	.data_mode = 0x0b,
+	.power = OMAP3_BAIA_ABIL_DEM_VIDEO1V8,
 };
 
 /* TVP5150: Video Decoder */
@@ -108,7 +109,12 @@ static struct isp_platform_data omap3baia_isp_platform_data = {
 
 static int __init omap3baia_cam_init(void)
 {
-	printk("%s-%d TODO poweron\n", __func__, __LINE__);
+	/* DEM is enabled */
+        if (gpio_request(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, "Video DEM enable pin") < 0)
+                printk(KERN_ERR "can't get video DEM GPIO\n");
+        gpio_direction_output(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0);
+	gpio_export(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0); /* danger */
+//	omap_mux_init_gpio(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, OMAP_PIN_OUTPUT);
 
 	omap3_init_camera(&omap3baia_isp_platform_data);
 

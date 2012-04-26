@@ -50,10 +50,13 @@
 #include <plat/omap-pm.h>
 #include <linux/moduleparam.h>
 
+#include <linux/i2c/tda9885.h>
+
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "board-omap3baia.h"
+
 
 static u8 omap3_baia_version;
 
@@ -649,6 +652,13 @@ static struct i2c_board_info __initdata omap3_baia_twl_i2c_boardinfo[] = {
 	},
 };
 
+static struct tda9885_platform_data omap3baia_tda9885_platform_data = {
+	.switching_mode = 0xf2,
+	.adjust_mode = 0xd0,
+	.data_mode = 0x0b,
+	.power = OMAP3_BAIA_ABIL_DEM_VIDEO1V8,
+};
+
 static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x53),
@@ -656,6 +666,10 @@ static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	},
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
+	{
+		I2C_BOARD_INFO("tda9885", 0x43),
+		.platform_data  = &omap3baia_tda9885_platform_data,
 	},
 };
 
@@ -738,8 +752,11 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(SYS_BOOT6, OMAP_MUX_MODE3 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(SYS_CLKOUT2, OMAP_MUX_MODE0 | OMAP_PIN_OFF_NONE),
 
-	/* For MCSPI4 */
+	/* MCSPI4 */
 	OMAP3_MUX(MCBSP1_DR, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
+
+	/* Video demodulator for SCS video in path */
+	OMAP3_MUX(DSS_DATA3, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
 #ifdef CONFIG_OMAP_MCBSP
 	/* For MCBSP3 */
