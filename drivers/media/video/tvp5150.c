@@ -328,8 +328,8 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 
 	if ((decoder->output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
-
-decoder->input = TVP5150_COMPOSITE0;
+	/* FIX */
+	decoder->input = TVP5150_COMPOSITE0;
 	switch (decoder->input) {
 	case TVP5150_COMPOSITE1:
 		input |= 2;
@@ -353,16 +353,6 @@ decoder->input = TVP5150_COMPOSITE0;
 
 	tvp5150_write(sd, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(sd, TVP5150_VD_IN_SRC_SEL_1, input);
-
-	/* Svideo should enable YCrCb output and disable GPCL output
-	 * For Composite and TV, it should be the reverse
-	 */
-	val = tvp5150_read(sd, TVP5150_MISC_CTL);
-	if (decoder->input == TVP5150_SVIDEO)
-		val = (val & ~0x40) | 0x10;
-	else
-		val = (val & ~0x10) | 0x40;
-	tvp5150_write(sd, TVP5150_MISC_CTL, val);
 };
 
 /* Default values as sugested at TVP5150AM1 datasheet */
@@ -945,56 +935,7 @@ static int tvp5150_s_parm(struct v4l2_subdev *sd,
  */
 static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	int err = 0;
-//	struct i2c_client *client = v4l2_get_subdevdata(sd);
-//	struct tvp514x_decoder *decoder = to_decoder(sd);
-
 	return 0;
-
-#if 0
-	switch (enable) {
-	case 0:
-	{
-		/* Power Down Sequence */
-		err = tvp514x_write_reg(sd, REG_OPERATION_MODE, 0x01);
-		if (err) {
-			v4l2_err(sd, "Unable to turn off decoder\n");
-			return err;
-		}
-		decoder->streaming = enable;
-		break;
-	}
-	case 1:
-	{
-		struct tvp514x_reg *int_seq = (struct tvp514x_reg *)
-				client->driver->id_table->driver_data;
-
-		/* Power Up Sequence */
-		err = tvp514x_write_regs(sd, int_seq);
-		if (err) {
-			v4l2_err(sd, "Unable to turn on decoder\n");
-			return err;
-		}
-		/* Detect if not already detected */
-		err = tvp514x_detect(sd, decoder);
-		if (err) {
-			v4l2_err(sd, "Unable to detect decoder\n");
-			return err;
-		}
-		err = tvp514x_configure(sd, decoder);
-		if (err) {
-			v4l2_err(sd, "Unable to configure decoder\n");
-			return err;
-		}
-		decoder->streaming = enable;
-		break;
-	}
-	default:
-		err = -ENODEV;
-		break;
-	}
-#endif
-	return err;
 }
 
 
@@ -1363,6 +1304,10 @@ static int tvp5150_probe(struct i2c_client *c,
 		break;
         case 0x5151:
 		v4l2_info(sd, "5151 type detected.\n");
+
+		/* Initializes TVP5150 to stream enabled values */
+		tvp5150_write_inittab(sd, tvp5151_init_enable);
+
 		break;
         default:
 		v4l2_info(sd, "*** unknown device id detected.\n");
