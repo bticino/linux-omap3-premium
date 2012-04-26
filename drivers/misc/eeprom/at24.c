@@ -406,13 +406,13 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 
 		/* disabling wp */
 		if (at24->chip.wpset)
-			at24->chip.wpset(0);
+			at24->chip.wpset(at24->chip.wppol);
 
 		status = at24_eeprom_write(at24, buf, off, count);
 
 		/* enabling wp */
 		if (at24->chip.wpset)
-			at24->chip.wpset(1);
+			at24->chip.wpset(!at24->chip.wppol);
 
 		if (status <= 0) {
 			if (retval == 0)

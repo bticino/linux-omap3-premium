@@ -28,6 +28,7 @@ struct at24_platform_data {
 	void		(*setup)(struct memory_accessor *, void *context);
 	void		*context;
 	void		(*wpset)(int enable);	/* write protect enable */
+	u8		wppol;			/* write protect polarity */
 };
 
 #endif /* _LINUX_AT24_H */
