@@ -329,8 +329,8 @@ static struct omap_dss_device omap3_baia_tv_device = {
 static struct omap_dss_device omap3_baia_lcd_device;
 
 static struct omap_dss_device *omap3_baia_dss_devices[] = {
-	&omap3_baia_tv_device,
 	&omap3_baia_lcd_device,
+	&omap3_baia_tv_device,
 };
 
 static struct omap_dss_board_info omap3_baia_dss_data = {
