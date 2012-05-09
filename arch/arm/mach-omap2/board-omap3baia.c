@@ -871,6 +871,7 @@ static void __init omap3_baia_init(void)
 	omap_mux_init_gpio(65, OMAP_PIN_INPUT_PULLUP);
 	usb_ehci_init(&ehci_pdata);
 
+	usb_nop_xceiv_register(0);
 	usb_musb_init(&musb_board_data);
 
 	ads7846_dev_init();
