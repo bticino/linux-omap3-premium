@@ -51,12 +51,24 @@
 #include <linux/moduleparam.h>
 
 #include <linux/i2c/tda9885.h>
+#include <linux/memory.h>
+#include <linux/ks8851_mll.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "board-omap3baia.h"
 
+static struct ks8851_mll_platform_data platform_baia_ks8851_mll_pdata;
+
+void baia_get_mac_addr(struct memory_accessor *mem_acc, void *context)
+{
+	char *mac_addr = platform_baia_ks8851_mll_pdata.mac_addr;
+	off_t offset = (off_t)context;
+	/* Read MAC addr from EEPROM */
+	if (mem_acc->read(mem_acc, mac_addr, offset, ETH_ALEN) == ETH_ALEN)
+		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
+}
 
 static u8 omap3_baia_version;
 
@@ -178,6 +190,7 @@ static struct platform_device platform_baia_ks8851_mll = {
 	.resource       = &baia_ks8851_mll_resources[0],
 	.dev = {
 		.dma_mask       = &baia_ks8851_mll_dmamask,
+		.platform_data  = &platform_baia_ks8851_mll_pdata,
 	},
 };
 
@@ -205,6 +218,9 @@ static void omap3baia_init_ks8851_mll(void)
 		return;
 	}
 	gpio_direction_output(OMAP3_BAIA_KS8851_MLL_RESET,1);
+
+	/* The mac address is read from the at24 eeprom automatically */
+
 	platform_device_register(&platform_baia_ks8851_mll);
 }
 EXPORT_SYMBOL(omap3baia_init_ks8851_mll);
@@ -649,6 +665,8 @@ static struct at24_platform_data eeprom_info = {
         .byte_len       = (256*1024) / 8,
         .page_size      = 64,
         .flags          = AT24_FLAG_ADDR16,
+	.setup		= baia_get_mac_addr,
+	.context	= (void *)0x19e, /* where it gets the mac-address */
 	.wpset		= wp_set,
 	.wppol		= 0,
 };
@@ -875,6 +893,12 @@ static void __init omap3_baia_init(void)
 	usb_musb_init(&musb_board_data);
 
 	ads7846_dev_init();
+
+	ret = gpio_request(OMAP3_BAIA_EEPROM_WP, "AT24 WP enable");
+	if (ret)
+		printk(KERN_ERR "unable to request AT24 WP enable!\n");
+	gpio_direction_output(OMAP3_BAIA_EEPROM_WP, 1);
+	omap3_baia_i2c_init();
 	omap3baia_init_ks8851_mll();
 	omap3_baia_display_init();
 
@@ -885,18 +909,7 @@ static void __init omap3_baia_init(void)
 	platform_device_register(&omap3baia_wlan_regulator);
 #endif
 
-	/*
-	 * TODO CHECK:
-	 * ds1803 must be checked after the LCD is powered up ?
-	 */
-
-	ret = gpio_request(OMAP3_BAIA_EEPROM_WP, "AT24 WP enable");
-	if (ret)
-		printk(KERN_ERR "unable to request AT24 WP enable!\n");
-	gpio_direction_output(OMAP3_BAIA_EEPROM_WP, 1);
-
-	omap3_baia_i2c_init();
-}
+	}
 
 MACHINE_START(OMAP3_BAIA, "OMAP3 BAIA")
 	/* Maintainer: Raffaele Recalcati : Bticino S.p.A. */
