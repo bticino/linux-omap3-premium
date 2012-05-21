@@ -41,7 +41,7 @@
 #include "dss.h"
 #include "dss_features.h"
 
-#define HW_BAIA_FIRST_VER
+#undef HW_BAIA_FIRST_VER
 #define HW_BAIA_VER1_DISPC_CPR_COEF_R 0x10000000
 #define HW_BAIA_VER1_DISPC_CPR_COEF_G 0x00020000
 #define HW_BAIA_VER1_DISPC_CPR_COEF_B 0x00000040
@@ -801,10 +801,8 @@ static void _dispc_setup_color_conv_coef(void)
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(0), ct->full_range, 11, 11);
 	REG_FLD_MOD(DISPC_VID_ATTRIBUTES(1), ct->full_range, 11, 11);
 
-#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
 	/* COLOR PHASE ROTATION - par.7.4.2.5.1 */
 	REG_FLD_MOD(DISPC_CONFIG, 1, 15, 15);
-#endif
 
 }
 
@@ -3197,7 +3195,7 @@ printk("DISPC %s - %d\n", __func__, __LINE__);
 
 	enable_clocks(0);
 
-#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
+#ifdef HW_BAIA_FIRST_VER
 	printk("DISPC_CPR_COEF R,G,B\n");
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 	dispc_write_reg(DISPC_CPR_COEF_R, HW_BAIA_VER1_DISPC_CPR_COEF_R);
