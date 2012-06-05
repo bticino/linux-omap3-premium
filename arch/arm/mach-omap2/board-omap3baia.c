@@ -629,6 +629,11 @@ static struct platform_device omap3baia_wlan_regulator = {
 	},
 };
 
+static struct platform_device madc_hwmon = {
+	.name = "twl4030_madc_hwmon",
+	.id = -1,
+};
+
 struct wl12xx_platform_data omap3baia_wlan_data __initdata = {
 	.irq = OMAP_GPIO_IRQ(OMAP3_BAIA_WLAN_IRQ_GPIO),
 	.board_ref_clock = WL12XX_REFCLOCK_38, /* 38.4 MHz */
@@ -641,7 +646,7 @@ static struct twl4030_platform_data omap3_baia_twldata = {
 
 	/* platform_data for children goes here */
 	.keypad		= &omap3baia_kp_data,
-	.madc		= &omap3baia_madc_data,
+	.madc           = &omap3baia_madc_data,
 	.usb		= &omap3baia_usb_data,
 	.gpio		= &omap3baia_gpio_data,
 	.codec		= &omap3baia_codec_data,
@@ -733,8 +738,14 @@ static void __init omap3_baia_init_irq(void)
 	omap_init_irq();
 }
 
+static struct platform_device omap3_baia_cy7c65630 = {
+	.name		= "cypress_cy7c65",
+	.id		= -1,
+};
+
 static struct platform_device *omap3_baia_devices[] __initdata = {
 	&omap3_baia_dss_device,
+	&madc_hwmon,
 };
 
 /* USB HOST */
