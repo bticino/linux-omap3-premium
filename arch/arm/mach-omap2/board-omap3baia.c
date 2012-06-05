@@ -757,9 +757,9 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 	.port_mode[2] = EHCI_HCD_OMAP_MODE_UNKNOWN,
 
 	.phy_reset  = true,
-	/* PHY reset GPIO will be runtime programmed based on EVM version */
+	/* PHY reset GPIO will be runtime programmed based on board version */
 	.reset_gpio_port[0]  = -EINVAL,
-	.reset_gpio_port[1]  = -EINVAL,
+	.reset_gpio_port[1]  = OMAP3_BAIA_EHCIPHYRESET,
 	.reset_gpio_port[2]  = -EINVAL
 };
 
@@ -897,7 +897,7 @@ static void __init omap3_baia_init(void)
 	 */
 
 	/* setup EHCI phy reset config */
-	omap_mux_init_gpio(65, OMAP_PIN_INPUT_PULLUP);
+	omap_mux_init_gpio(OMAP3_BAIA_EHCIPHYRESET, OMAP_PIN_INPUT_PULLUP);
 	usb_ehci_init(&ehci_pdata);
 
 	usb_nop_xceiv_register(0);

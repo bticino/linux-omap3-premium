@@ -18,6 +18,7 @@
 #define OMAP3_BAIA_ABIL_SOURCE_IP1V8		(59)
 #define OMAP3_BAIA_EEPROM_WP			(72)
 #define OMAP3_BAIA_ABIL_DEM_VIDEO1V8		(73)
+#define OMAP3_BAIA_EHCIPHYRESET			(65)
 
 #ifdef VER2_MOD /* need for having pwm working */
 #define OMAP3_BAIA_BLUETOOTH_RESET_1V8		(10)
