@@ -282,9 +282,56 @@ u32 dispc_cpr_bb_get(void)
 			      DISPC_CPR_COEF_B_BB_MIN);
 }
 
-u32 dispc_dither(void)
+u32 dispc_dither_set(u32 val)
 {
+	enable_clocks(1);
+	REG_FLD_MOD(DISPC_CONTROL, val, 7, 7);
+	enable_clocks(0);
 	return 0;
+}
+
+u32 dispc_dither_get(void)
+{
+	int val;
+
+	enable_clocks(1);
+	val = REG_GET(DISPC_CONTROL, 7, 7);
+	enable_clocks(0);
+	return val;
+}
+
+u32 dispc_dither_spatial_set(void)
+{
+	enable_clocks(1);
+	REG_FLD_MOD(DISPC_CONTROL, 0, 31, 30);
+	enable_clocks(0);
+	return 0;
+}
+
+u32 dispc_dither_spatial_temp_2_frames_set(void)
+{
+	enable_clocks(1);
+	REG_FLD_MOD(DISPC_CONTROL, 1, 31, 30);
+	enable_clocks(0);
+	return 0;
+}
+
+u32 dispc_dither_spatial_temp_4_frames_set(void)
+{
+	enable_clocks(1);
+	REG_FLD_MOD(DISPC_CONTROL, 2, 31, 30);
+	enable_clocks(0);
+	return 0;
+}
+
+u32 dispc_dither_mode_get(void)
+{
+	int val;
+
+	enable_clocks(1);
+	val = REG_GET(DISPC_CONTROL, 31, 30);
+	enable_clocks(0);
+	return val;
 }
 
 void dispc_save_context(void)
@@ -2116,7 +2163,6 @@ bool dispc_trans_key_enabled(enum omap_channel ch)
 void dispc_set_tft_data_lines(u8 data_lines)
 {
 	int code;
-
 	switch (data_lines) {
 	case 12:
 		code = 0;
@@ -3188,7 +3234,6 @@ int dispc_init(void)
 	dispc_save_context();
 
 	rev = dispc_read_reg(DISPC_REVISION);
-printk("DISPC %s - %d\n", __func__, __LINE__);
 
 	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));

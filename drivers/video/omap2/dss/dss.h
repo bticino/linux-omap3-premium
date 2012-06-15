@@ -391,6 +391,12 @@ void dispc_cpr_gg_set(u32 val);
 u32  dispc_cpr_gg_get(void);
 void dispc_cpr_bb_set(u32 val);
 u32  dispc_cpr_bb_get(void);
+u32 dispc_dither_set(u32 val);
+u32 dispc_dither_get(void);
+u32 dispc_dither_spatial_set(void);
+u32 dispc_dither_spatial_temp_2_frames_set(void);
+u32 dispc_dither_spatial_temp_4_frames_set(void);
+u32 dispc_dither_mode_get(void);
 
 bool dispc_lcd_timings_ok(struct omap_video_timings *timings);
 void dispc_set_lcd_timings(struct omap_video_timings *timings);

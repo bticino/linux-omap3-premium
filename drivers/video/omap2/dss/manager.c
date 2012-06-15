@@ -380,6 +380,67 @@ static ssize_t manager_cpr_bb_store(
 	return size;
 }
 
+static ssize_t empty_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return 0;;
+}
+
+static ssize_t empty_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	return size;
+}
+
+static ssize_t dither_mode_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dispc_dither_mode_get());
+}
+
+static ssize_t dither_en_show(
+		struct omap_overlay_manager *mgr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", dispc_dither_get());
+}
+
+static ssize_t dither_en_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	int v;
+
+	if (sscanf(buf, "%d", &v) > 1)
+		return -EINVAL;
+	dispc_dither_set(v);
+	return size;
+}
+
+static ssize_t dispc_dither_spatial_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	dispc_dither_spatial_set();
+	return size;
+}
+
+static ssize_t dither_spatial_temp_2_frames_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	dispc_dither_spatial_temp_2_frames_set();
+	return size;
+}
+
+static ssize_t dither_spatial_temp_4_frames_store(
+		struct omap_overlay_manager *mgr,
+		const char *buf, size_t size)
+{
+	dispc_dither_spatial_temp_4_frames_set();
+	return size;
+}
+
 struct manager_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct omap_overlay_manager *, char *);
@@ -414,6 +475,21 @@ static MANAGER_ATTR(cpr_gg, S_IRUGO|S_IWUSR,
 static MANAGER_ATTR(cpr_bb, S_IRUGO|S_IWUSR,
 		manager_cpr_bb_show,
 		manager_cpr_bb_store);
+static MANAGER_ATTR(dither_en, S_IRUGO|S_IWUSR,
+		dither_en_show,
+		dither_en_store);
+static MANAGER_ATTR(dither_mode, S_IRUGO,
+		dither_mode_show,
+		empty_store);
+static MANAGER_ATTR(dither_spatial, S_IWUSR,
+		empty_show,
+		dispc_dither_spatial_store);
+static MANAGER_ATTR(dither_spatial_temp_2_frames, S_IWUSR,
+		empty_show,
+		dither_spatial_temp_2_frames_store);
+static MANAGER_ATTR(dither_spatial_temp_4_frames, S_IWUSR,
+		empty_show,
+		dither_spatial_temp_4_frames_store);
 
 static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_name.attr,
@@ -426,6 +502,11 @@ static struct attribute *manager_sysfs_attrs[] = {
 	&manager_attr_cpr_rr.attr,
 	&manager_attr_cpr_gg.attr,
 	&manager_attr_cpr_bb.attr,
+	&manager_attr_dither_en.attr,
+	&manager_attr_dither_spatial.attr,
+	&manager_attr_dither_spatial_temp_2_frames.attr,
+	&manager_attr_dither_spatial_temp_4_frames.attr,
+	&manager_attr_dither_mode.attr,
 	NULL
 };
 
