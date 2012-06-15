@@ -94,7 +94,6 @@ static int cmo_panel_probe(struct omap_dss_device *dssdev)
 
 	dev_set_drvdata(&dssdev->dev, sd);
 
-	printk("%s-%d\n", __func__, __LINE__);
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.max_brightness = dssdev->max_backlight_level;
 
@@ -122,7 +121,6 @@ static void cmo_panel_remove(struct omap_dss_device *dssdev)
 	struct cmo_data *sd = dev_get_drvdata(&dssdev->dev);
 	struct backlight_device *bl = sd->bl;
 
-	printk("%s-%d\n", __func__, __LINE__);
 	bl->props.power = FB_BLANK_POWERDOWN;
 	cmo_bl_update_status(bl);
 	backlight_device_unregister(bl);
@@ -203,6 +201,11 @@ static int cmo_panel_resume(struct omap_dss_device *dssdev)
 	return cmo_panel_enable(dssdev);
 }
 
+static int cmo_get_recommended_bpp(struct omap_dss_device *dssdev)
+{
+	return 24;
+}
+
 static struct omap_dss_driver cmo_driver = {
 	.probe		= cmo_panel_probe,
 	.remove		= cmo_panel_remove,
@@ -211,6 +214,8 @@ static struct omap_dss_driver cmo_driver = {
 	.disable	= cmo_panel_disable,
 	.suspend	= cmo_panel_suspend,
 	.resume		= cmo_panel_resume,
+
+	.get_recommended_bpp = cmo_get_recommended_bpp,
 
 	.driver         = {
 		.name   = "claa102na0dcw",
