@@ -285,28 +285,11 @@ static ssize_t manager_cpr_rr_store(
 		struct omap_overlay_manager *mgr,
 		const char *buf, size_t size)
 {
-	struct omap_overlay_manager_info info;
-	int enable = 0;
-	int r;
-	int v, v1;
+	int v;
 
-	if (sscanf(buf, "%d", &v) > 1) {
+	if (sscanf(buf, "%d", &v) > 1)
 		return -EINVAL;
-	}
 	dispc_cpr_rr_set(v);
-
-// TODO change below in the right way
-	mgr->get_manager_info(mgr, &info);
-
-	info.alpha_enabled = enable ? true : false;
-
-	r = mgr->set_manager_info(mgr, &info);
-	if (r)
-		return r;
-
-	r = mgr->apply(mgr);
-	if (r)
-		return r;
 	return size;
 }
 
@@ -320,28 +303,11 @@ static ssize_t manager_cpr_gg_store(
 		struct omap_overlay_manager *mgr,
 		const char *buf, size_t size)
 {
-	struct omap_overlay_manager_info info;
-	int enable = 0;
-	int r;
-	int v, v1;
+	int v;
 
-	if (sscanf(buf, "%d", &v) > 1) {
+	if (sscanf(buf, "%d", &v) > 1)
 		return -EINVAL;
-	}
 	dispc_cpr_gg_set(v);
-
-// TODO change below in the right way
-	mgr->get_manager_info(mgr, &info);
-
-	info.alpha_enabled = enable ? true : false;
-
-	r = mgr->set_manager_info(mgr, &info);
-	if (r)
-		return r;
-
-	r = mgr->apply(mgr);
-	if (r)
-		return r;
 	return size;
 }
 
@@ -355,28 +321,11 @@ static ssize_t manager_cpr_bb_store(
 		struct omap_overlay_manager *mgr,
 		const char *buf, size_t size)
 {
-	struct omap_overlay_manager_info info;
-	int enable = 0;
-	int r;
-	int v, v1;
+	int v;
 
-	if (sscanf(buf, "%d", &v) > 1) {
+	if (sscanf(buf, "%d", &v) > 1)
 		return -EINVAL;
-	}
 	dispc_cpr_bb_set(v);
-
-// TODO change below in the right way
-	mgr->get_manager_info(mgr, &info);
-
-	info.alpha_enabled = enable ? true : false;
-
-	r = mgr->set_manager_info(mgr, &info);
-	if (r)
-		return r;
-
-	r = mgr->apply(mgr);
-	if (r)
-		return r;
 	return size;
 }
 
