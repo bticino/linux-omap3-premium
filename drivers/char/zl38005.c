@@ -364,7 +364,7 @@ static const struct file_operations zl38005_fops = {
 	.owner =	THIS_MODULE,
 	.open =		zl38005_open,
 	.release =	zl38005_close,
-	.ioctl =	zl38005_ioctl,
+	.unlocked_ioctl = zl38005_ioctl,
 };
 
 /*-------------------------------------------------------------------------*/
