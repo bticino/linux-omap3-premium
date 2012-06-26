@@ -28,6 +28,16 @@ config SND_OMAP_SOC_RX51
 	  Say Y if you want to add support for SoC audio on Nokia RX-51
 	  hardware. This is also known as Nokia N900 product.
 
+config SND_OMAP_SOC_OMAP3_BAIA
+	tristate "SoC Audio support for OMAP3_BAIA board"
+	depends on SND_OMAP_SOC && MACH_OMAP3_BAIA
+	select SND_OMAP_SOC_MCBSP
+	select SND_OMAP_SOC_I2S
+	select SND_SOC_TLV320AIC3X
+	help
+	  Say Y if you want to add support for SoC audio on the omap3_baia
+	  board trough aic34 codec.
+
 config SND_OMAP_SOC_AMS_DELTA
 	tristate "SoC Audio support for Amstrad E3 (Delta) videophone"
 	depends on SND_OMAP_SOC && MACH_AMS_DELTA
