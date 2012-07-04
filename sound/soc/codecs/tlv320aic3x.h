@@ -13,7 +13,7 @@
 #define _AIC3X_H
 
 /* AIC3X register space */
-#define AIC3X_CACHEREGNUM		103
+#define AIC3X_CACHEREGNUM		110
 
 /* Page select register */
 #define AIC3X_PAGE_SELECT		0
