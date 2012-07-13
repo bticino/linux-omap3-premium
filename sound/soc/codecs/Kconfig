@@ -316,6 +316,9 @@ config SND_SOC_MAX9877
 config SND_SOC_TPA6130A2
 	tristate
 
+config SND_SOC_TPA2016D2
+	tristate
+
 config SND_SOC_WM2000
 	tristate
 
