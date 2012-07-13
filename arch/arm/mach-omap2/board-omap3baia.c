@@ -19,15 +19,17 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/leds.h>
 #include <linux/interrupt.h>
 
 #include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
+#include <linux/spi/tsc2005.h>
 #include <linux/i2c/twl.h>
 #include <linux/i2c/at24.h>
+#include <linux/i2c/twl4030-madc.h>
 #include <linux/usb/otg.h>
 
 #include <linux/wl12xx.h>
@@ -54,12 +56,17 @@
 #include <linux/memory.h>
 #include <linux/ks8851_mll.h>
 
+#include <linux/spi/zl38005.h>
+#include <sound/tpa2016d2-plat.h>
+#include <sound/tlv320aic3x.h>
+
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "board-omap3baia.h"
 
 static struct ks8851_mll_platform_data platform_baia_ks8851_mll_pdata;
+static struct twl4030_madc_platform_data omap3baia_madc_data;
 
 void baia_get_mac_addr(struct memory_accessor *mem_acc, void *context)
 {
@@ -70,73 +77,112 @@ void baia_get_mac_addr(struct memory_accessor *mem_acc, void *context)
 		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
 }
 
-static u8 omap3_baia_version;
+/* For testing purpose with different hardware */
+static unsigned int baia_gpio_debug = 1;
+module_param(baia_gpio_debug, uint, S_IRUGO);
+MODULE_PARM_DESC(baia_gpio_debug, "0:disabled, 1:enabled (default)");
 
 /* For testing purpose with different hardware */
-static unsigned int baia_lcd = 0;
+static unsigned int baia_lcd;
 module_param(baia_lcd, uint, S_IRUGO);
 MODULE_PARM_DESC(baia_lcd, "LCD: 0:AMPIRE (default), 1:AUO");
 
-/* BOARD: reading revision */
-u8 get_omap3_baia_rev(void)
-{
-	return omap3_baia_version;
-}
-EXPORT_SYMBOL(get_omap3_baia_rev);
+/* Getting hardware version from u-boot */
+static unsigned int baia_dig_board_rev;
+module_param(baia_dig_board_rev, uint, S_IRUGO);
+MODULE_PARM_DESC(baia_dig_board_rev, "digital board revision");
 
-static void __init omap3_baia_get_revision(void)
+/* Getting hardware version from u-boot */
+static unsigned int baia_con_board_rev;
+module_param(baia_con_board_rev, uint, S_IRUGO);
+MODULE_PARM_DESC(baia_con_board_rev, "connector board revision");
+
+#define U7503A_U7504A_HWversion
+
+static void baia_get_baia_rev(struct work_struct *work);
+static DECLARE_DELAYED_WORK(late_init_work, baia_get_baia_rev);
+
+/* Reading Baia board revision from tps65951 madc in2 */
+static void baia_get_baia_rev(struct work_struct *work)
 {
-	/* TODO */
+	int ret;
+
+	while (1) {
+		ret = twl4030_get_madc_conversion(2);
+		if (ret >= 0)
+			break;
+		msleep(500);
+	}
+	system_serial_low = (ret + 5) / 10;
 }
 
-/* DEVICE: ADS7846 touchpad */
-static void ads7846_dev_init(void)
-{
-	if (gpio_request(OMAP3_BAIA_TS_GPIO, "ADS7846 pendown") < 0)
-		printk(KERN_ERR "can't get ads7846 pen down GPIO\n");
-	gpio_direction_input(OMAP3_BAIA_TS_GPIO);
-	gpio_set_debounce(OMAP3_BAIA_TS_GPIO, 310);
-}
-
-static int ads7846_get_pendown_state(void)
-{
-	return !gpio_get_value(OMAP3_BAIA_TS_GPIO);
-}
-
-static struct ads7846_platform_data ads7846_config = {
-	.x_max			= 0x0fff,
-	.y_max			= 0x0fff,
-	.x_plate_ohms		= 450,
-	.pressure_max		= 20 * 1024,
-	.debounce_max		= 20,
-	.debounce_tol		= 30,
-	.debounce_rep		= 1,
-	.get_pendown_state	= ads7846_get_pendown_state,
-	.keep_vref_on		= 1,
-	.settle_delay_usecs	= 1500,
-	.wakeup			= true,
+/* DEVICE: TSC2005 touchpad */
+static struct tsc2005_platform_data tsc2005_pdata = {
+	.ts_pressure_max        = 2048,
+	.ts_pressure_fudge      = 2,
+	.ts_x_max               = 4096,
+	.ts_x_fudge             = 4,
+	.ts_y_max               = 4096,
+	.ts_y_fudge             = 7,
+	.ts_x_plate_ohm         = 700,
+	.esd_timeout_ms         = 8000,
 };
 
-static struct omap2_mcspi_device_config ads7846_mcspi_config = {
+static void baia_tsc2005_set_reset(bool enable)
+{
+	gpio_set_value(OMAP3_BAIA_TS_RESET, enable);
+}
+
+static void tsc2005_dev_init(void)
+{
+	if (gpio_request(OMAP3_BAIA_TS_NPENIRQ, "TSC2005 pendown") < 0)
+		printk(KERN_ERR "can't get tsc2005 pen down GPIO\n");
+	gpio_direction_input(OMAP3_BAIA_TS_NPENIRQ);
+	gpio_set_debounce(OMAP3_BAIA_TS_NPENIRQ, 310);
+
+	if (gpio_request(OMAP3_BAIA_TS_RESET, "TSC2005 reset") < 0)
+		printk(KERN_ERR "can't get tsc2005 reset\n");
+	gpio_direction_output(OMAP3_BAIA_TS_RESET, 1);
+
+	tsc2005_pdata.set_reset = baia_tsc2005_set_reset;
+}
+
+static struct omap2_mcspi_device_config tsc2005_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel	= 1,	/* 0: slave, 1: master */
 };
 
+static struct zl38005_platform_data zl_config[] = {
+	[0] = {
+		.chip_select_gpio = OMAP3_BAIA_NCS5A_ZL1_CS,
+	},
+	[1] = {
+		.chip_select_gpio = OMAP3_BAIA_NCS4A_ZL2_CS,
+	}
+};
+
 static struct spi_board_info omap3_baia_spi_board_info[] = {
 	[0] = {
-		.modalias		= "ads7846",
+		.modalias		= "tsc2005",
 		.bus_num		= 1,
 		.chip_select		= 0,
-		.max_speed_hz		= 1500000,
-		.controller_data	= &ads7846_mcspi_config,
-		.irq			= OMAP_GPIO_IRQ(OMAP3_BAIA_TS_GPIO),
-		.platform_data		= &ads7846_config,
+		.irq			= OMAP_GPIO_IRQ(OMAP3_BAIA_TS_NPENIRQ),
+		.max_speed_hz		= 6000000,
+		.controller_data	= &tsc2005_mcspi_config,
+		.platform_data		= &tsc2005_pdata,
+	},
+	[1] = {
+		.modalias		= "zl38005",
+		.bus_num		= 4,
+		.max_speed_hz		= 2 * 1000 * 1000,
+		.mode			= SPI_MODE_0,
+		.platform_data          = zl_config,
 	},
 };
 
 /* DEVICE: BACKLIGHT */
 static struct gpio_led gpio_leds[] = {
-	[OMAP3_BAIA_LED_BACKLIGHT] = {
+	[OMAP3_BAIA_VLED_EN_1V8] = {
 		.name                   = "omap3baia::backlight",
 		/* normally not visible (board underside) */
 		.default_trigger        = "default-on",
@@ -205,7 +251,8 @@ static void omap3baia_init_ks8851_mll(void)
 	else
 		rate = clk_get_rate(l3ck);
 
-	if (gpio_request(OMAP3_BAIA_KS8851_MLL_GPIO_IRQ, "kS8851_MLL irq") < 0) {
+	if (gpio_request(OMAP3_BAIA_KS8851_MLL_GPIO_IRQ,
+			 "kS8851_MLL irq") < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for KS8851_MLL IRQ\n",
 			OMAP3_BAIA_KS8851_MLL_GPIO_IRQ);
 		return;
@@ -217,7 +264,9 @@ static void omap3baia_init_ks8851_mll(void)
 			OMAP3_BAIA_KS8851_MLL_RESET);
 		return;
 	}
-	gpio_direction_output(OMAP3_BAIA_KS8851_MLL_RESET,1);
+	gpio_direction_output(OMAP3_BAIA_KS8851_MLL_RESET, 0);
+	mdelay(10);
+	gpio_direction_output(OMAP3_BAIA_KS8851_MLL_RESET, 1);
 
 	/* The mac address is read from the at24 eeprom automatically */
 
@@ -237,23 +286,101 @@ static void __init omap3_baia_display_init(void)
 		goto err;
 	}
 	gpio_direction_output(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8, 1);
+
+	msleep(200);
+
+	r = gpio_request(OMAP3_BAIA_SHTD_VIDEO_1V8,
+			 "lcd_panel_shtd_video_1v8");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_shtd_video_1v8\n");
+		goto err;
+	}
+	gpio_direction_output(OMAP3_BAIA_SHTD_VIDEO_1V8, 1);
+
+	r = gpio_request(OMAP3_BAIA_EN_BL,
+			 "lcd_panel_en_bl");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_en_bl\n");
+		goto err;
+	}
+	gpio_direction_output(OMAP3_BAIA_EN_BL, 1);
+
+	/* backlight */
+	r = gpio_request(OMAP3_BAIA_VLED_EN_1V8,
+			 "lcd_panel_vled_en_1v8");
+	if (r) {
+		printk(KERN_ERR "failed to get lcd_panel_vled_en_1v8\n");
+		goto err;
+	}
+	gpio_direction_output(OMAP3_BAIA_VLED_EN_1V8, 1);
+
 	return;
 
 err:
 	gpio_free(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8);
 }
 
-#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || defined(CONFIG_PANEL_AUO_B101EW05)
+/* TLV320AIC3104: reset */
+static void __init omap3_baia_tlv320AIC3104_init(void)
+{
+	int r;
+
+	r = gpio_request(OMAP3_BAIA_RES_O_1V8,
+			 "tlv320AIC3104_res_o_1v8");
+	if (r) {
+		printk(KERN_ERR "failed to get tlv320AIC3104_res_o_1v8\n");
+		goto err;
+	}
+	gpio_direction_output(OMAP3_BAIA_RES_O_1V8, 0);
+	mdelay(1);	/* only 10nsec are required */
+	gpio_direction_output(OMAP3_BAIA_RES_O_1V8, 1);
+	return;
+
+err:
+	gpio_free(OMAP3_BAIA_RES_O_1V8);
+}
+
+/* ZARLINK 1,2 */
+static void __init omap3_baia_zarlink_init(void)
+{
+	if (gpio_request(OMAP3_BAIA_NCS5A_ZL1_CS, "ZL1 chip select") < 0)
+		printk(KERN_ERR "can't get zl1 cs\n");
+	gpio_direction_output(OMAP3_BAIA_NCS5A_ZL1_CS, 1);
+
+	if (gpio_request(OMAP3_BAIA_NCS4A_ZL2_CS, "ZL2 chip select") < 0)
+		printk(KERN_ERR "can't get zl2 cs\n");
+	gpio_direction_output(OMAP3_BAIA_NCS4A_ZL2_CS, 1);
+
+	if (gpio_request(OMAP3_BAIA_RES_ZL1_1V8, "ZL1 reset") < 0)
+		printk(KERN_ERR "can't get zl1 reset\n");
+	gpio_direction_output(OMAP3_BAIA_RES_ZL1_1V8, 1);
+
+	if (gpio_request(OMAP3_BAIA_RES_ZL2_1V8, "ZL2 reset") < 0)
+		printk(KERN_ERR "can't get zl2 reset\n");
+	gpio_direction_output(OMAP3_BAIA_RES_ZL2_1V8, 1);
+
+	if (gpio_request(OMAP3_BAIA_ABIL_FON_SCS, "ABIL_FON_SCS enable") < 0)
+		printk(KERN_ERR "can't get ABIL_FON_SCS enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_FON_SCS, 1);
+
+	if (gpio_request(OMAP3_BAIA_ABIL_FON_IP, "ABIL_FON_IP enable") < 0)
+		printk(KERN_ERR "can't get ABIL_FON_IP enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_FON_IP, 0);
+
+	return;
+}
+
+#if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || \
+	    defined(CONFIG_PANEL_AUO_B101EW05)
 
 #define TWL_LED_LEDEN           0x00
 #define TWL_PWMA_PWMAON         0x00
 #define TWL_PWMA_PWMAOFF        0x01
 
-static int omap3_baia_set_bl_intensity_lvds(struct omap_dss_device *dssdev, int level)
+static int omap3_baia_set_bl_intensity_lvds(struct omap_dss_device *dssdev,
+					    int level)
 {
 	unsigned char c;
-
-	printk("%s-%d\n", __func__, __LINE__);
 
 	if (level > dssdev->max_backlight_level)
 		level = dssdev->max_backlight_level;
@@ -261,16 +388,14 @@ static int omap3_baia_set_bl_intensity_lvds(struct omap_dss_device *dssdev, int 
 	c = ((125 * (100 - level)) / 100);
 	switch (baia_lcd) {
 	case 0:
-	printk("%s-%d\n", __func__, __LINE__);
 		/* CPT_CLAA102NA0DCW compatible regulations */
 		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x01, TWL_PWMA_PWMAON);
 		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x40, TWL_PWMA_PWMAOFF);
 		twl_i2c_write_u8(TWL4030_MODULE_LED, 0x11, TWL_LED_LEDEN);
 		break;
 	case 1:
-	printk("%s-%d\n", __func__, __LINE__);
 		twl_i2c_write_u8(TWL4030_MODULE_LED, 0x11, TWL_LED_LEDEN);
-	        twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x01, TWL_PWMA_PWMAON);
+		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x01, TWL_PWMA_PWMAON);
 		twl_i2c_write_u8(TWL4030_MODULE_PWMA, 0x02, TWL_PWMA_PWMAOFF);
 		/* AUO_B101EW05 regulations */
 		break;
@@ -283,11 +408,14 @@ static int omap3_baia_enable_lcd(struct omap_dss_device *dssdev)
 {
 	gpio_set_value(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8, 1);
 	omap_pm_set_min_bus_tput(&dssdev->dev, OCP_INITIATOR_AGENT, 0);
+
+	gpio_set_value(OMAP3_BAIA_EN_BL, 1);
 	return 0;
 }
 
 static void omap3_baia_disable_lcd(struct omap_dss_device *dssdev)
 {
+	gpio_set_value(OMAP3_BAIA_EN_BL, 0);
 	gpio_set_value(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8, 0);
 	omap_pm_set_min_bus_tput(&dssdev->dev, OCP_INITIATOR_AGENT, 0);
 }
@@ -298,7 +426,7 @@ static struct omap_dss_device omap3_baia_lcd_device_claa = {
 	.name			= "lcd",
 	.driver_name		= "claa102na0dcw",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.phy.dpi.data_lines	= 24,
+	.phy.dpi.data_lines	= 18,
 	.max_backlight_level	= 100,
 	.platform_enable	= omap3_baia_enable_lcd,
 	.platform_disable	= omap3_baia_disable_lcd,
@@ -428,18 +556,18 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_cd	= -EINVAL, /* gpio 0 : tps65930 */
 		.gpio_wp	= OMAP3_BAIA_SDCARD_WR_PR,
 	},
-        {
+	{
 		.name		= "eMMC",
-                .mmc            = 2,
-                .caps           = MMC_CAP_4_BIT_DATA,
-                .gpio_cd        = -EINVAL,
-                .gpio_wp        = -EINVAL,
-                .nonremovable   = true,
-        },
+		.mmc            = 2,
+		.caps           = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+		.gpio_cd        = -EINVAL,
+		.gpio_wp        = -EINVAL,
+		.nonremovable   = true,
+	},
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
 	{
 		.name		= "wl1271",
-		.mmc		= 3, /*VERIFICA ALIM, diversa posizione su mmc rispetto s schedsl */
+		.mmc		= 3,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
 		.gpio_wp	= -EINVAL,
 		.gpio_cd	= -EINVAL,
@@ -449,16 +577,14 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static int gpio_video_dec_noff, gpio_video_dec_nres;
-
 static int omap3_baia_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
-	printk("%s-%d gpio=%d\n", __func__, __LINE__, gpio);
-
-	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-//	omap_mux_init_gpio(129, OMAP_PIN_INPUT);
-	mmc[0].gpio_cd = gpio + 0;
+	/* gpio + 0 is "mmc0_cd" (input/IRQ) and is equal to 192
+	 * and to OMAP3_BAIA_TPS_OFFSET and to
+	 * OMAP3_BAIA_TPS_SD_CARD_DET
+	 */
+	mmc[0].gpio_cd = OMAP3_BAIA_TPS_SD_CARD_DET;
 	omap2_hsmmc_init(mmc);
 
 	/* link regulators to MMC adapters */
@@ -466,31 +592,26 @@ static int omap3_baia_twl_gpio_setup(struct device *dev,
 	omap3baia_vsim_supply.dev = mmc[0].dev;
 	omap3baia_vmmc2_supply.dev = mmc[1].dev;
 
-	/*
-	 * Most GPIOs are for USB OTG.  Some are mostly sent to
-	 * the P2 connector; notably LEDA for the LCD backlight.
+	/* See omap3_baia_gpio_keys for the following keys
+	 * OMAP3_BAIA_TPS_PULS1,
+	 * OMAP3_BAIA_TPS_PULS2,
+	 * OMAP3_BAIA_TPS_PULS3,
+	 * OMAP3_BAIA_TPS_PULS4,
 	 */
 
-	/* gpio + 1 == Audio Codec Reset */
-	gpio_request(gpio + 1, "aud-cod #reset");
-	gpio_direction_output(gpio + 1, 1);
-
-	/* gpio + 7 == PAL decoder Enable */
-	gpio_video_dec_noff = gpio + 7;
-	gpio_request(gpio_video_dec_noff, "vid-dec #off");
-	gpio_direction_output(gpio_video_dec_noff, 1); // TODO now is ALWAYS ON
-
-	/* gpio + 15 == PAL decoder Reset */
-	gpio_video_dec_nres = gpio + 15;
-	printk("%s-%d gpio_video_dec_nres=%d\n", __func__, __LINE__, gpio_video_dec_nres);
-	gpio_request(gpio_video_dec_nres, "vid-dec #reset"); 
-	// TODO now is always on
-	gpio_direction_output(gpio_video_dec_nres, 0);
-	mdelay(10);
-	gpio_direction_output(gpio_video_dec_nres, 1);
-	mdelay(10);
-
-	printk("%s-%d TVP: NRES=%d,NOFF=%d\n", __func__, __LINE__, gpio_get_value(gpio_video_dec_nres), gpio_get_value(gpio_video_dec_noff));
+	if (gpio_request(OMAP3_BAIA_NPDEC_PWRDN, "tvp5151 pdn") < 0) {
+		printk(KERN_ERR "Failed to request GPIO%d tvp5151 pdn\n",
+			OMAP3_BAIA_NPDEC_PWRDN);
+		return -ENODEV;
+	}
+	gpio_direction_output(OMAP3_BAIA_NPDEC_PWRDN, 1);
+	mdelay(20);
+	gpio_request(OMAP3_BAIA_TPS_PDEC_RES, "vid-dec #reset");
+	/* TODO now is always on */
+	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 0);
+	mdelay(1); /* 500nsec are enough */
+	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 1);
+	mdelay(1);
 
 	platform_device_register(&leds_gpio);
 	return 0;
@@ -502,30 +623,19 @@ static struct twl4030_gpio_platform_data omap3baia_gpio_data = {
 	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3_baia_twl_gpio_setup,
+	.mmc_cd		= 1,
+	.debounce	= (BIT(7) |		/* key 1 -- gpio + 7  */
+			  (BIT(5) << 8) |	/* key 2 -- gpio + 13 */
+			   BIT(2) |		/* key 3 -- gpio + 2  */
+			   BIT(1)),		/* key 4 -- gpio + 1  */
 };
 
 static struct twl4030_usb_data omap3baia_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static uint32_t board_keymap[] = {
-	KEY(0, 0, KEY_F1),
-};
-
-static struct matrix_keymap_data board_map_data = {
-	.keymap			= board_keymap,
-	.keymap_size		= ARRAY_SIZE(board_keymap),
-};
-
-static struct twl4030_keypad_data omap3baia_kp_data = {
-	.keymap_data	= &board_map_data,
-	.rows		= 1,
-	.cols		= 1,
-	.rep		= 1,
-};
-
 static struct twl4030_madc_platform_data omap3baia_madc_data = {
-	.irq_line	= 1,
+	.irq_line       = 1,
 };
 
 static struct twl4030_codec_audio_data omap3baia_audio_data = {
@@ -579,6 +689,9 @@ static struct regulator_init_data omap3baia_vpll2 = {
 static struct regulator_consumer_supply omap3baia_vio_supply[] = {
 	REGULATOR_SUPPLY("vcc", "spi1.0"),
 	REGULATOR_SUPPLY("vio_1v8", NULL),
+	/* tlv320aic3x digital supplies */
+	REGULATOR_SUPPLY("IOVDD", "2-0018"),
+	REGULATOR_SUPPLY("DVDD", "2-0018"),
 };
 
 static struct regulator_init_data omap3baia_vio = {
@@ -645,7 +758,6 @@ static struct twl4030_platform_data omap3_baia_twldata = {
 	.irq_end	= TWL4030_IRQ_END,
 
 	/* platform_data for children goes here */
-	.keypad		= &omap3baia_kp_data,
 	.madc           = &omap3baia_madc_data,
 	.usb		= &omap3baia_usb_data,
 	.gpio		= &omap3baia_gpio_data,
@@ -663,13 +775,13 @@ wp_set: set/unset the at24 eeprom write protect
 */
 void wp_set(int enable)
 {
-        gpio_set_value(OMAP3_BAIA_EEPROM_WP, enable);
+	gpio_set_value(OMAP3_BAIA_EEPROM_WP, enable);
 }
 
 static struct at24_platform_data eeprom_info = {
-        .byte_len       = (256*1024) / 8,
-        .page_size      = 64,
-        .flags          = AT24_FLAG_ADDR16,
+	.byte_len       = (256*1024) / 8,
+	.page_size      = 64,
+	.flags          = AT24_FLAG_ADDR16,
 	.setup		= baia_get_mac_addr,
 	.context	= (void *)0x19e, /* where it gets the mac-address */
 	.wpset		= wp_set,
@@ -685,12 +797,50 @@ static struct i2c_board_info __initdata omap3_baia_twl_i2c_boardinfo[] = {
 	},
 };
 
+static struct tpa2016d2_platform_data omap3baia_tpa2016d2_platform_data = {
+	.shutdown_gpio = OMAP3_BAIA_EN_AMPLI,
+};
+
 static struct tda9885_platform_data omap3baia_tda9885_platform_data = {
 	.switching_mode = 0xf2,
 	.adjust_mode = 0xd0,
 	.data_mode = 0x0b,
 	.power = OMAP3_BAIA_ABIL_DEM_VIDEO1V8,
 };
+
+/* TLV320AIC3104 id setup */
+static struct i2c_client *tlv320aic3104;
+
+static int tlv320aic3104_probe(struct i2c_client *client,
+			       const struct i2c_device_id *id)
+{
+	tlv320aic3104 = client;
+	return 0;
+}
+
+static int tlv320aic3104_remove(struct i2c_client *client)
+{
+	tlv320aic3104 = NULL;
+	return 0;
+}
+
+static const struct i2c_device_id tlv320aic3104_ids[] = {
+	{ "tlv320aic3104", 0, },
+	{ /* end of list */ },
+};
+
+static struct i2c_driver tlv320aic3104_driver = {
+	.driver.name    = "tlv320aic3104",
+	.id_table       = tlv320aic3104_ids,
+	.probe          = tlv320aic3104_probe,
+	.remove         = tlv320aic3104_remove,
+};
+
+#if 0
+static struct aic3x_pdata omap3baia_aic3x_data = {
+	.gpio_reset = OMAP3_BAIA_RES_O_1V8,
+};
+#endif
 
 static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	{
@@ -701,9 +851,20 @@ static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 		I2C_BOARD_INFO("pcf8563", 0x51),
 	},
 	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x18),
+#if 0
+		.platform_data  = &omap3baia_aic3x_data,
+#endif
+	},
+	{
 		I2C_BOARD_INFO("tda9885", 0x43),
 		.platform_data  = &omap3baia_tda9885_platform_data,
 	},
+	{
+		I2C_BOARD_INFO("tpa2016d2", 0x58),
+		.platform_data  = &omap3baia_tpa2016d2_platform_data,
+	},
+
 };
 
 static int __init omap3_baia_i2c_init(void)
@@ -712,12 +873,15 @@ static int __init omap3_baia_i2c_init(void)
 	 * REVISIT: These entries can be set in omap3baia_twl_data
 	 * after a merge with MFD tree
 	 */
-//	omap3_baia_twldata.vmmc1 = &omap3baia_vmmc1;
-//	omap3_baia_twldata.vsim = &omap3baia_vsim;
+#if 0
+	omap3_baia_twldata.vmmc1 = &omap3baia_vmmc1;
+	omap3_baia_twldata.vsim = &omap3baia_vsim;
+#endif
 
 	omap_register_i2c_bus(1, 2600, omap3_baia_twl_i2c_boardinfo,
 			ARRAY_SIZE(omap3_baia_twl_i2c_boardinfo));
 	/* Bus 2 is used for Camera/Sensor interface */
+	i2c_add_driver(&tlv320aic3104_driver);
 	omap_register_i2c_bus(2, 100, omap3_baia_i2c_boardinfo,
 			ARRAY_SIZE(omap3_baia_i2c_boardinfo));
 	return 0;
@@ -746,6 +910,7 @@ static struct platform_device omap3_baia_cy7c65630 = {
 static struct platform_device *omap3_baia_devices[] __initdata = {
 	&omap3_baia_dss_device,
 	&madc_hwmon,
+	&omap3_baia_cy7c65630,
 };
 
 /* USB HOST */
@@ -767,11 +932,6 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 
 #ifdef CONFIG_OMAP_MUX
 static struct omap_board_mux omap36x_board_mux[] __initdata = {
-#ifdef CONFIG_KEYBOARD_TWL4030
-	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP |
-			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
-			OMAP_PIN_OFF_WAKEUPENABLE),
-#endif
 #ifdef CONFIG_TOUCHSCREEN_ADS7846
 	OMAP3_MUX(CAM_D9, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP |
 			OMAP_PIN_OFF_INPUT_PULLUP | OMAP_PIN_OFF_OUTPUT_LOW |
@@ -798,22 +958,46 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(DSS_DATA3, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
 #ifdef CONFIG_OMAP_MCBSP
+	/* For MCBSP2 */
+	/* PIN 'MCBSP2_DX/GPIO_119' is connected to NET 'IIS3_DATAO' */
+	OMAP3_MUX(MCBSP2_DX, OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT),
+	/* PIN 'MCBSP2_DR/GPIO_118' is connected to NET 'IIS3_DATAI' */
+	OMAP3_MUX(MCBSP2_DR, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* PIN 'MCBSP2_CLKX/GPIO_117' is connected to NET 'IIS3_CLK_B2' */
+	OMAP3_MUX(MCBSP2_CLKX, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN),
+	/* PIN 'MCBSP2_FSX/GPIO_116' is connected to NET 'IIS3_FS' */
+	OMAP3_MUX(MCBSP2_FSX, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLDOWN),
+
 	/* For MCBSP3 */
 	OMAP3_MUX(MCBSP1_CLKX, OMAP_MUX_MODE2 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(MCBSP1_FSX, OMAP_MUX_MODE2 | OMAP_PIN_OFF_NONE),
 	OMAP3_MUX(MCBSP3_DX, OMAP_MUX_MODE0 | OMAP_PIN_OFF_NONE),
 #endif
 	/* MMC2 SDIO pin muxes for eMMC */
-	OMAP3_MUX(SDMMC2_CLK, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_clk */
-	OMAP3_MUX(SDMMC2_CMD, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_cmd */
-	OMAP3_MUX(SDMMC2_DAT0, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat0 */
-	OMAP3_MUX(SDMMC2_DAT1, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat1 */
-	OMAP3_MUX(SDMMC2_DAT2, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat2 */
-	OMAP3_MUX(SDMMC2_DAT3, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat3 */
-	OMAP3_MUX(SDMMC2_DAT4, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat4 */
-	OMAP3_MUX(SDMMC2_DAT5, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat5 */
-	OMAP3_MUX(SDMMC2_DAT6, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat6 */
-	OMAP3_MUX(SDMMC2_DAT7, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP), /* sdmmc2_dat7 */
+	/* sdmmc2_clk */
+	OMAP3_MUX(SDMMC2_CLK, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_cmd */
+	OMAP3_MUX(SDMMC2_CMD, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat0 */
+	OMAP3_MUX(SDMMC2_DAT0, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat1 */
+	OMAP3_MUX(SDMMC2_DAT1, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat2 */
+	OMAP3_MUX(SDMMC2_DAT2, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat3 */
+	OMAP3_MUX(SDMMC2_DAT3, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat4 */
+	OMAP3_MUX(SDMMC2_DAT4, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat5 */
+	OMAP3_MUX(SDMMC2_DAT5, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat6 */
+	OMAP3_MUX(SDMMC2_DAT6, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc2_dat7 */
+	OMAP3_MUX(SDMMC2_DAT7, OMAP_MUX_MODE0 | OMAP_PIN_INPUT_PULLUP),
+
+	/* PAL DEC  POWER DOWN */
+	/* etk_d9 : gpio_23 */
+	OMAP3_MUX(ETK_D9, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
 	/* TODO: check Bluetooth
 	 * UART1_TX (GPIO_148)
@@ -832,20 +1016,61 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 	OMAP3_MUX(I2C3_SCL, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
 	/* MMC3 SDIO pin muxes for WL12xx */
-	OMAP3_MUX(ETK_CLK, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_clk */
-	OMAP3_MUX(ETK_CTL, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_cmd */
-	OMAP3_MUX(ETK_D3, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_dat3 */
-	OMAP3_MUX(ETK_D4, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_dat0 */
-	OMAP3_MUX(ETK_D5, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_dat1 */
-	OMAP3_MUX(ETK_D6, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP), /* sdmmc3_dat2 */
+	/* sdmmc3_clk */
+	OMAP3_MUX(ETK_CLK, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc3_cmd */
+	OMAP3_MUX(ETK_CTL, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc3_dat3 */
+	OMAP3_MUX(ETK_D3, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc3_dat0 */
+	OMAP3_MUX(ETK_D4, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc3_dat1 */
+	OMAP3_MUX(ETK_D5, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
+	/* sdmmc3_dat2 */
+	OMAP3_MUX(ETK_D6, OMAP_MUX_MODE2 | OMAP_PIN_INPUT_PULLUP),
 #endif
 
 	/* For UART2 */
-	OMAP3_MUX(MCBSP3_CLKX, OMAP_MUX_MODE1 | OMAP_PIN_OFF_NONE), /* uart2_tx */
-	OMAP3_MUX(MCBSP3_FSX, OMAP_MUX_MODE1 | OMAP_PIN_INPUT), /* uart2_rx */
+	/* uart2_tx */
+	OMAP3_MUX(MCBSP3_CLKX, OMAP_MUX_MODE1 | OMAP_PIN_OFF_NONE),
+	/* uart2_rx */
+	OMAP3_MUX(MCBSP3_FSX, OMAP_MUX_MODE1 | OMAP_PIN_INPUT),
 
 	/* AT24 EEPROM WP - GPIO 72 */
 	OMAP3_MUX(DSS_DATA2, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* TLV320AIC3104 reset - GPIO 71 : OMAP3_BAIA_RES_O_1V8 */
+	OMAP3_MUX(DSS_DATA1, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* OMAP3_BAIA_EN_AMPLI - GPIO 110 */
+	OMAP3_MUX(CAM_D11, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* OMAP3_BAIA_SHTD_VIDEO_1V8 - GPIO 61 */
+	OMAP3_MUX(GPMC_NBE1, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* OMAP3_BAIA_VLED_EN_1V8 - GPIO 185 */
+	OMAP3_MUX(I2C3_SDA, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* OMAP3_BAIA_TS_RESET - GPIO 126 */
+	OMAP3_MUX(CAM_STROBE, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* I2S: CLK to TLV320AIC3104 */
+	/* already set by x-loader */
+	OMAP3_MUX(GPMC_NCS4, OMAP_MUX_MODE2 | OMAP_PIN_INPUT),
+	OMAP3_MUX(GPMC_NCS5, OMAP_MUX_MODE2 | OMAP_PIN_INPUT),
+	OMAP3_MUX(GPMC_NCS6, OMAP_MUX_MODE2 | OMAP_PIN_OUTPUT),
+	OMAP3_MUX(GPMC_NCS7, OMAP_MUX_MODE2 | OMAP_PIN_INPUT),
+
+	/* Audio path: GPIO_160, GPIO_109 */
+	OMAP3_MUX(MCBSP_CLKS, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+	OMAP3_MUX(CAM_D10, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* KSZ8851_MLL reset */
+	OMAP3_MUX(MCBSP1_FSR, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+
+	/* Factory Default Reset: GPIO_15 (drv) GPIO_164 (read) */
+	OMAP3_MUX(UART3_RTS_SD, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
+	OMAP3_MUX(ETK_D1, OMAP_MUX_MODE4 | OMAP_PIN_INPUT_PULLUP),
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
@@ -859,38 +1084,116 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+
+#define OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT 10
+
+static struct gpio_keys_button omap3_baia_gpio_keys[] = {
+	{
+		.desc			= "Factory Default Reset",
+		.type			= EV_SW,
+		.code			= SW_FRONT_PROXIMITY,
+		.gpio			= OMAP3_BAIA_FACTORY_RESET_READ,
+		.active_low		= 1,
+		.debounce_interval	= OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT,
+	},
+	{
+		.desc			= "key 1",
+		.type			= EV_KEY,
+		.code			= KEY_1,
+		.gpio			= OMAP3_BAIA_TPS_PULS1,
+		.active_low		= 1,
+		.debounce_interval	= OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT,
+	},
+	{
+		.desc			= "key 2",
+		.type			= EV_KEY,
+		.code			= KEY_2,
+		.gpio			= OMAP3_BAIA_TPS_PULS2,
+		.active_low		= 1,
+		.debounce_interval	= OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT,
+	},
+	{
+		.desc			= "key 3",
+		.type			= EV_KEY,
+		.code			= KEY_3,
+		.gpio			= OMAP3_BAIA_TPS_PULS3,
+		.active_low		= 1,
+		.debounce_interval	= OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT,
+	},
+	{
+		.desc			= "key 4",
+		.type			= EV_KEY,
+		.code			= KEY_4,
+		.gpio			= OMAP3_BAIA_TPS_PULS4,
+		.active_low		= 1,
+		.debounce_interval	= OMAP3_BAIA_GPIO_DEBOUNCE_TIMEOUT,
+	},
+};
+
+static struct gpio_keys_platform_data omap3_baia_gpio_keys_data = {
+	.buttons	= omap3_baia_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(omap3_baia_gpio_keys),
+};
+
+static struct platform_device omap3_baia_gpio_keys_device = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &omap3_baia_gpio_keys_data,
+	},
+};
+
+static void __init omap3_baia_add_gpio_keys(void)
+{
+	int ret = gpio_request(OMAP3_BAIA_FACTORY_RESET_DRV,
+			       "FACTORY reset enable");
+	if (ret)
+		printk(KERN_ERR "unable to request FACTORY reset enable!\n");
+	gpio_direction_output(OMAP3_BAIA_FACTORY_RESET_DRV, 1);
+
+	platform_device_register(&omap3_baia_gpio_keys_device);
+}
+#else
+static void __init omap3_baia_add_gpio_keys(void)
+{
+}
+#endif /* CONFIG_KEYBOARD_GPIO || CONFIG_KEYBOARD_GPIO_MODULE */
+
 static void __init omap3_baia_init(void)
 {
 	int ret;
-
-	omap3_baia_get_revision();
 
 	if (cpu_is_omap3630()) {
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CUS);
 	} else {
 		printk(KERN_ERR "WRONG CPU .. STOPPING\n");
-		for (;;);
+		for (;;)
+			schedule();
 	}
 
-	printk(KERN_INFO "baia_lcd=%d\n", baia_lcd);
 	switch (baia_lcd) {
 	case 0:
 		printk(KERN_INFO "LCD CLAA/CPT/AMPIRE OVERRIDING\n");
-		memcpy(&omap3_baia_lcd_device,&omap3_baia_lcd_device_claa, sizeof(struct omap_dss_device));
+		memcpy(&omap3_baia_lcd_device, &omap3_baia_lcd_device_claa,
+		       sizeof(struct omap_dss_device));
 		break;
 	case 1:
 	default:
 		printk(KERN_INFO "LCD AUO OVERRIDING\n");
-		memcpy(&omap3_baia_lcd_device,&omap3_baia_lcd_device_auo, sizeof(struct omap_dss_device));
+		memcpy(&omap3_baia_lcd_device, &omap3_baia_lcd_device_auo,
+		       sizeof(struct omap_dss_device));
 		break;
 	}
 
-	platform_add_devices(omap3_baia_devices, ARRAY_SIZE(omap3_baia_devices));
+	platform_add_devices(omap3_baia_devices,
+			     ARRAY_SIZE(omap3_baia_devices));
 
 	spi_register_board_info(omap3_baia_spi_board_info,
 				ARRAY_SIZE(omap3_baia_spi_board_info));
 
 	omap_serial_init();
+
 
 	/*
 	 * Enable USB
@@ -903,15 +1206,45 @@ static void __init omap3_baia_init(void)
 	usb_nop_xceiv_register(0);
 	usb_musb_init(&musb_board_data);
 
-	ads7846_dev_init();
+	tsc2005_dev_init();
 
 	ret = gpio_request(OMAP3_BAIA_EEPROM_WP, "AT24 WP enable");
 	if (ret)
 		printk(KERN_ERR "unable to request AT24 WP enable!\n");
 	gpio_direction_output(OMAP3_BAIA_EEPROM_WP, 1);
+
 	omap3_baia_i2c_init();
 	omap3baia_init_ks8851_mll();
 	omap3_baia_display_init();
+	omap3_baia_tlv320AIC3104_init();
+	omap3_baia_zarlink_init();
+	omap3_baia_add_gpio_keys();
+
+	if (baia_gpio_debug) {
+		/* Not nice for production release */
+		gpio_export(OMAP3_BAIA_VLED_EN_1V8, 0);
+		gpio_export(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8, 0);
+		gpio_export(OMAP3_BAIA_SHTD_VIDEO_1V8, 0);
+		gpio_export(OMAP3_BAIA_EN_BL, 0);
+		gpio_export(OMAP3_BAIA_RES_O_1V8, 0);
+		gpio_export(OMAP3_BAIA_NPDEC_PWRDN, 0);
+		gpio_export(OMAP3_BAIA_TS_RESET, 0);
+		gpio_export(OMAP3_BAIA_RES_ZL1_1V8, 0);
+		gpio_export(OMAP3_BAIA_RES_ZL2_1V8, 0);
+		gpio_export(OMAP3_BAIA_NCS5A_ZL1_CS, 0);
+		gpio_export(OMAP3_BAIA_NCS4A_ZL2_CS, 0);
+		gpio_export(OMAP3_BAIA_ABIL_FON_IP, 0);
+		gpio_export(OMAP3_BAIA_ABIL_FON_SCS, 0);
+		gpio_export(OMAP3_BAIA_FACTORY_RESET_DRV, 0);
+/*
+		This commands BLOCK the kernel startup
+		gpio_export(OMAP3_BAIA_TPS_PDEC_RES, 0);
+		gpio_export(OMAP3_BAIA_TPS_PULS4, 0);
+		gpio_export(OMAP3_BAIA_TPS_PULS3, 0);
+		gpio_export(OMAP3_BAIA_TPS_PULS1, 0);
+		gpio_export(OMAP3_BAIA_TPS_PULS2, 0);
+*/
+	}
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
 	/* WL12xx WLAN Init */
@@ -920,7 +1253,8 @@ static void __init omap3_baia_init(void)
 	platform_device_register(&omap3baia_wlan_regulator);
 #endif
 
-	}
+	schedule_delayed_work(&late_init_work, (msecs_to_jiffies(1*10)));
+}
 
 MACHINE_START(OMAP3_BAIA, "OMAP3 BAIA")
 	/* Maintainer: Raffaele Recalcati : Bticino S.p.A. */
