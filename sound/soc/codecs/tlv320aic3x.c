@@ -223,11 +223,13 @@ static const char *aic3x_adc_hpf[] =
 #define RDAC_ENUM	1
 #define LHPCOM_ENUM	2
 #define RHPCOM_ENUM	3
-#define LINE1L_ENUM	4
-#define LINE1R_ENUM	5
-#define LINE2L_ENUM	6
-#define LINE2R_ENUM	7
-#define ADC_HPF_ENUM	8
+#define LINE1L_2_L_ENUM	4
+#define LINE1L_2_R_ENUM	5
+#define LINE1R_2_L_ENUM	6
+#define LINE1R_2_R_ENUM	7
+#define LINE2L_ENUM	8
+#define LINE2R_ENUM	9
+#define ADC_HPF_ENUM	10
 
 static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(DAC_LINE_MUX, 6, 3, aic3x_left_dac_mux),
@@ -235,6 +237,8 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(HPLCOM_CFG, 4, 3, aic3x_left_hpcom_mux),
 	SOC_ENUM_SINGLE(HPRCOM_CFG, 3, 5, aic3x_right_hpcom_mux),
 	SOC_ENUM_SINGLE(LINE1L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_SINGLE(LINE1L_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
+	SOC_ENUM_SINGLE(LINE1R_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE1R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
@@ -366,6 +370,9 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	*/
 	SOC_DOUBLE_R("AGC Switch", LAGC_CTRL_A, RAGC_CTRL_A, 7, 0x01, 0),
 
+	/* De-emphasis */
+	SOC_DOUBLE("De-emphasis Switch", AIC3X_CODEC_DFILT_CTRL, 2, 0, 0x01, 0),
+
 	/* Input */
 	SOC_DOUBLE_R_TLV("PGA Capture Volume", LADC_VOL, RADC_VOL,
 			 0, 119, 0, adc_tlv),
@@ -380,7 +387,7 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 static DECLARE_TLV_DB_SCALE(classd_amp_tlv, 0, 600, 0);
 
 static const struct snd_kcontrol_new aic3x_classd_amp_gain_ctrl =
-	SOC_DOUBLE_TLV("Class-D Amplifier Gain", CLASSD_CTRL, 6, 4, 3, 0, classd_amp_tlv);
+	SOC_DOUBLE_TLV("Class-D Playback Volume", CLASSD_CTRL, 6, 4, 3, 0, classd_amp_tlv);
 
 /* Left DAC Mux */
 static const struct snd_kcontrol_new aic3x_left_dac_mux_controls =
@@ -487,12 +494,16 @@ static const struct snd_kcontrol_new aic3x_right_pga_mixer_controls[] = {
 };
 
 /* Left Line1 Mux */
-static const struct snd_kcontrol_new aic3x_left_line1_mux_controls =
-SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_ENUM]);
+static const struct snd_kcontrol_new aic3x_left_line1l_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_2_L_ENUM]);
+static const struct snd_kcontrol_new aic3x_right_line1l_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1L_2_R_ENUM]);
 
 /* Right Line1 Mux */
-static const struct snd_kcontrol_new aic3x_right_line1_mux_controls =
-SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_ENUM]);
+static const struct snd_kcontrol_new aic3x_right_line1r_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_2_R_ENUM]);
+static const struct snd_kcontrol_new aic3x_left_line1r_mux_controls =
+SOC_DAPM_ENUM("Route", aic3x_enum[LINE1R_2_L_ENUM]);
 
 /* Left Line2 Mux */
 static const struct snd_kcontrol_new aic3x_left_line2_mux_controls =
@@ -532,9 +543,9 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			   &aic3x_left_pga_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_left_pga_mixer_controls)),
 	SND_SOC_DAPM_MUX("Left Line1L Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_left_line1_mux_controls),
+			 &aic3x_left_line1l_mux_controls),
 	SND_SOC_DAPM_MUX("Left Line1R Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_left_line1_mux_controls),
+			 &aic3x_left_line1r_mux_controls),
 	SND_SOC_DAPM_MUX("Left Line2L Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_left_line2_mux_controls),
 
@@ -545,9 +556,9 @@ static const struct snd_soc_dapm_widget aic3x_dapm_widgets[] = {
 			   &aic3x_right_pga_mixer_controls[0],
 			   ARRAY_SIZE(aic3x_right_pga_mixer_controls)),
 	SND_SOC_DAPM_MUX("Right Line1L Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_right_line1_mux_controls),
+			 &aic3x_right_line1l_mux_controls),
 	SND_SOC_DAPM_MUX("Right Line1R Mux", SND_SOC_NOPM, 0, 0,
-			 &aic3x_right_line1_mux_controls),
+			 &aic3x_right_line1r_mux_controls),
 	SND_SOC_DAPM_MUX("Right Line2R Mux", SND_SOC_NOPM, 0, 0,
 			 &aic3x_right_line2_mux_controls),
 
@@ -1069,7 +1080,6 @@ static int aic3x_regulator_event(struct notifier_block *nb,
 	struct aic3x_disable_nb *disable_nb =
 		container_of(nb, struct aic3x_disable_nb, nb);
 	struct aic3x_priv *aic3x = disable_nb->aic3x;
-
 	if (event & REGULATOR_EVENT_DISABLE) {
 		/*
 		 * Put codec to reset and require cache sync as at least one
@@ -1115,6 +1125,13 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 			aic3x_init_3007(codec);
 		codec->cache_sync = 0;
 	} else {
+		/*
+		 * Do soft reset to this codec instance in order to clear
+		 * possible VDD leakage currents in case the supply regulators
+		 * remain on
+		 */
+		snd_soc_write(codec, AIC3X_RESET, SOFT_RESET);
+		codec->cache_sync = 1;
 		aic3x->power = 0;
 		/* HW writes are needless when bias is off */
 		codec->cache_only = 1;
