@@ -30,6 +30,7 @@
 #include "omap-pcm.h"
 #include "../codecs/tlv320aic3x.h"
 #include "../codecs/zl38005.h"
+#include "../codecs/tpa2016d2.h"
 
 #define CODEC_SYS_FREQ 13000000
 
@@ -101,6 +102,8 @@ static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_new_controls(codec, aic31_dapm_widgets,
 				  ARRAY_SIZE(aic31_dapm_widgets));
 
+	tpa2016d2_add_controls(codec);
+
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync(codec);
@@ -139,7 +142,7 @@ static int __init omap3baia_soc_init(void)
 	if (!machine_is_omap3_baia())
 		return -ENODEV;
 
-	omap3baia_snd_device = platform_device_alloc("soc-audio", -1);
+	omap3baia_snd_device = platform_device_alloc("soc-audio", 1);
 	if (!omap3baia_snd_device) {
 		err = -ENOMEM;
 		goto err1;

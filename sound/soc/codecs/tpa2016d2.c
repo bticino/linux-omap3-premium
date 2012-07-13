@@ -77,7 +77,6 @@ static int tpa2016d2_i2c_write(int reg, u8 value)
 	BUG_ON(tpa2016d2_client == NULL);
 	data = i2c_get_clientdata(tpa2016d2_client);
 	if (!data->shutdown_state) {
-		printk("WR REG=%x,VAL=%x\n", reg, value);
 		val = i2c_smbus_write_byte_data(tpa2016d2_client, reg, value);
 		if (val < 0) {
 			dev_err(&tpa2016d2_client->dev, "Write failed\n");
@@ -98,7 +97,6 @@ static u8 tpa2016d2_read(int reg)
 	BUG_ON(tpa2016d2_client == NULL);
 	data = i2c_get_clientdata(tpa2016d2_client);
 
-	printk("RD REG=%x,VAL=%x\n", reg, data->regs[reg]);
 	return data->regs[reg];
 }
 
@@ -138,7 +136,6 @@ static int tpa2016d2_shutdown(int shutdown)
 		if (data->shutdown_gpio >= 0)
 			gpio_set_value(data->shutdown_gpio, 1);
 
-printk("%s-%d ON \n", __func__, __LINE__);
 		data->shutdown_state = 0;
 		ret = tpa2016d2_initialize();
 		if (ret < 0) {
@@ -160,7 +157,6 @@ printk("%s-%d ON \n", __func__, __LINE__);
 		val |= TPA2016D2_SWS;
 		tpa2016d2_i2c_write(TPA2016D2_REG_CONTROL, val);
 
-printk("%s-%d OFF \n", __func__, __LINE__);
 		/* Power off */
 		if (data->shutdown_gpio >= 0)
 			gpio_set_value(data->shutdown_gpio, 0);
@@ -294,11 +290,10 @@ static int tpa2016d2_right_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int tpa2016d2_mode_event(struct snd_soc_dapm_widget *w,
+static int tpa2016d2_startup_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	int ret = 0;
-
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		ret = tpa2016d2_shutdown(0);
@@ -325,39 +320,26 @@ static const unsigned int rel_hold_time_tlv[] = {
 	0, 63, TLV_DB_LINEAR_ITEM(137,8631),
 };
 
-#if 0
 static const char *agc_enable[] =
     { "agc disabled", "agc 2:1", "agc 4:1", "agc 8:1"};
 
-//static const struct soc_enum agc_enum =
-	SOC_ENUM_SINGLE_EXT(TPA2016D2_REG_AGC_CONTROL_1, 0, 2, agc_enable);
-#endif
+static const struct soc_enum agc_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(agc_enable), agc_enable);
 
 /* 18dB to 30db in 1dB steps */
 static const DECLARE_TLV_DB_SCALE(agc_ampli, 1800, 100, 3000);
 
 static const struct snd_kcontrol_new tpa2016d2_controls[] = {
-	/* Control */
-	/* TODO Not working */
-#if 0
 	SOC_SINGLE_EXT("TPA2016D2 Noise Gate",
 		       TPA2016D2_REG_CONTROL, TPA2016D2_NG_EN, 1, 0,
 		       tpa2016d2_get_reg, tpa2016d2_put_reg),
-	/* Must be read-only,or we need to clear only in case of thermal fault */
-	SOC_SINGLE("TPA2016D2 Thermal", TPA2016D2_REG_CONTROL, TPA2016D2_THERMAL, 1, 0),
-	SOC_SINGLE("TPA2016D2 Fault Left", TPA2016D2_REG_CONTROL, TPA2016D2_FAULT_L, 1, 0),
-	SOC_SINGLE("TPA2016D2 Fault Right", TPA2016D2_REG_CONTROL, TPA2016D2_FAULT_R, 1, 0),
-	SOC_SINGLE("TPA2016D2 Soft Shutdown", TPA2016D2_REG_CONTROL, TPA2016D2_SWS, 1, 0),
-	/* TODO Not working */
 	SOC_SINGLE_EXT("TPA2016D2 Left Mute",
 		       TPA2016D2_REG_CONTROL, TPA2016D2_SPK_EN_L, 1, 0,
 		       tpa2016d2_get_reg, tpa2016d2_put_reg),
+
 	SOC_SINGLE_EXT("TPA2016D2 Right Mute",
 		   TPA2016D2_REG_CONTROL, TPA2016D2_SPK_EN_R, 1, 0,
 		       tpa2016d2_get_reg, tpa2016d2_put_reg),
-
-	/* DISABLED */
-	/* AGC Control */
 	SOC_SINGLE_EXT("TPA2016D2 Compression",
 		   TPA2016D2_REG_AGC_CONTROL, TPA2016D2_OUT_LIM_EN, 1, 1,
 		   tpa2016d2_get_reg, tpa2016d2_put_reg),
@@ -377,16 +359,11 @@ static const struct snd_kcontrol_new tpa2016d2_controls[] = {
 			   TPA2016D2_REG_AGC_HOLD, 0, 0x3f, 0,
 			   tpa2016d2_get_reg, tpa2016d2_put_reg,
 			   rel_hold_time_tlv),
-
-	/* NOT working */
-	SOC_ENUM_EXT("AGC enable", agc_enum,
-			   tpa2016d2_get_reg, tpa2016d2_put_reg),
-
-	/* Disabled */
+//	SOC_ENUM_EXT("AGC enable", agc_enum,
+//			   tpa2016d2_get_agc, tpa2016d2_put_agc),
 	SOC_SINGLE_EXT_TLV("AGC Gain", TPA2016D2_REG_AGC_CONTROL_1, 4, 12, 0,
 			   tpa2016d2_get_reg, tpa2016d2_put_reg,
 			   agc_ampli),
-#endif
 };
 
 static const struct snd_soc_dapm_widget tpa2016d2_dapm_widgets[] = {
@@ -397,17 +374,15 @@ static const struct snd_soc_dapm_widget tpa2016d2_dapm_widgets[] = {
 			0, 0, NULL, 0, tpa2016d2_right_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("TPA2016D2 Enable", SND_SOC_NOPM,
-			0, 0, tpa2016d2_mode_event,
+			0, 0, tpa2016d2_startup_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
-	/* Outputs */
-	SND_SOC_DAPM_OUTPUT("TPA2016D2 Headphone Left"),
-	SND_SOC_DAPM_OUTPUT("TPA2016D2 Headphone Right"),
+	SND_SOC_DAPM_OUTPUT("TPA2016D2 Speaker Left"),
+	SND_SOC_DAPM_OUTPUT("TPA2016D2 Speaker Right"),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
 	{"TPA2016D2 Speaker Left", NULL, "TPA2016D2 Left"},
 	{"TPA2016D2 Speaker Right", NULL, "TPA2016D2 Right"},
-
 	{"TPA2016D2 Speaker Left", NULL, "TPA2016D2 Enable"},
 	{"TPA2016D2 Speaker Right", NULL, "TPA2016D2 Enable"},
 };
@@ -418,7 +393,6 @@ int tpa2016d2_add_controls(struct snd_soc_codec *codec)
 
 	if (tpa2016d2_client == NULL)
 		return -ENODEV;
-
 	data = i2c_get_clientdata(tpa2016d2_client);
 
 	snd_soc_dapm_new_controls(codec, tpa2016d2_dapm_widgets,
@@ -464,19 +438,13 @@ static int __devinit tpa2016d2_probe(struct i2c_client *client,
 	mutex_init(&data->mutex);
 
 	/* Set default register values */
-	data->regs[TPA2016D2_REG_CONTROL] =
-			TPA2016D2_SPK_EN_L |
-			TPA2016D2_SPK_EN_R |
-			TPA2016D2_NG_EN;
-	data->regs[TPA2016D2_REG_AGC_ATTACH] = 0x5;
-	data->regs[TPA2016D2_REG_AGC_RELEASE] = 0xb;
+	data->regs[TPA2016D2_REG_CONTROL] = TPA2016D2_NG_EN;
+	data->regs[TPA2016D2_REG_AGC_ATTACH] = 0;
+	data->regs[TPA2016D2_REG_AGC_RELEASE] = 0;
 	data->regs[TPA2016D2_REG_AGC_HOLD] = 0;
-	data->regs[TPA2016D2_REG_AGC_FIXED_GAIN] =
-			TPA2016D2_REG_AGC_FIXED_GAIN_24DB;
+	data->regs[TPA2016D2_REG_AGC_FIXED_GAIN] = 0;
 	data->regs[TPA2016D2_REG_AGC_CONTROL] = 0x7f;
-	data->regs[TPA2016D2_REG_AGC_CONTROL_1] =
-			(0xc << 4 ) &
-			 ~(TPA2016D2_COMPR_RATIO);
+	data->regs[TPA2016D2_REG_AGC_CONTROL_1] = 0xc0;
 
 	if (data->shutdown_gpio >= 0) {
 		ret = gpio_request(data->shutdown_gpio, "tpa2016d2 enable");
@@ -485,37 +453,12 @@ static int __devinit tpa2016d2_probe(struct i2c_client *client,
 				data->shutdown_gpio);
 			goto err_gpio;
 		}
-		/* TODO remove: only for DEBUG */
-	printk("%s-%d gpio=%d ON\n", __func__, __LINE__, data->shutdown_gpio);
 		gpio_direction_output(data->shutdown_gpio, 0);
 		gpio_export(data->shutdown_gpio, 0);
+		data->shutdown_state = 1;
 	}
 
-	ret = tpa2016d2_shutdown(1);
-	if (ret != 0)
-		goto err_shutdown;
-	mdelay(10);
-	ret = tpa2016d2_shutdown(0);
-	if (ret != 0)
-		goto err_shutdown;
-
-	printk("TPA2019D2: NOT DISABLE THE CHIP, INITIALIZING IT\n");
-	ret = tpa2016d2_initialize();
-	if (ret != 0)
-		goto err_shutdown;
-#if 0
-	/* Disable the chip */
-	ret = tpa2016d2_shutdown(1);
-	if (ret != 0)
-		goto err_shutdown;
-#endif
-
-
 	return 0;
-
-err_shutdown:
-	if (data->shutdown_gpio >= 0)
-		gpio_free(data->shutdown_gpio);
 err_gpio:
 	kfree(data);
 	i2c_set_clientdata(tpa2016d2_client, NULL);

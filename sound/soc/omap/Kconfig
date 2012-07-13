@@ -34,6 +34,8 @@ config SND_OMAP_SOC_OMAP3_BAIA
 	select SND_OMAP_SOC_MCBSP
 	select SND_OMAP_SOC_I2S
 	select SND_SOC_TLV320AIC3X
+	select SND_SOC_TPA2016D2
+
 	help
 	  Say Y if you want to add support for SoC audio on the omap3_baia
 	  board trough aic34 codec.
