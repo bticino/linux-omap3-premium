@@ -97,7 +97,7 @@ static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 	/* Set up NC codec pins */
 	snd_soc_dapm_nc_pin(codec, "MIC3L");
 	snd_soc_dapm_nc_pin(codec, "MIC3R");
-	snd_soc_dapm_nc_pin(codec, "LINE1R");
+//	snd_soc_dapm_nc_pin(codec, "LINE1R");
 
 	snd_soc_dapm_new_controls(codec, aic31_dapm_widgets,
 				  ARRAY_SIZE(aic31_dapm_widgets));
