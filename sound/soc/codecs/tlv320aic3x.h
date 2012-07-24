@@ -74,6 +74,8 @@
 #define HPLCOM_CFG			37
 /* Right High Power Output control registers */
 #define HPRCOM_CFG			38
+/* High Power Output Stage Control Register */
+#define HPOUT_SC			40
 /* DAC Output Switching control registers */
 #define DAC_LINE_MUX			41
 /* High Power Output Driver Pop Reduction registers */

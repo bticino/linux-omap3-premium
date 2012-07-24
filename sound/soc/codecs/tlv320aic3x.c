@@ -220,6 +220,8 @@ static const char *aic3x_right_hpcom_mux[] =
 static const char *aic3x_linein_mode_mux[] = { "single-ended", "differential" };
 static const char *aic3x_adc_hpf[] =
     { "Disabled", "0.0045xFs", "0.0125xFs", "0.025xFs" };
+static const char *aic3x_out_stage[] =
+    { "1.35V", "1.5V", "1.65V", "1.8V" };
 
 #define LDAC_ENUM	0
 #define RDAC_ENUM	1
@@ -232,6 +234,7 @@ static const char *aic3x_adc_hpf[] =
 #define LINE2L_ENUM	8
 #define LINE2R_ENUM	9
 #define ADC_HPF_ENUM	10
+#define OUT_STAGE_ENUM	11
 
 static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(DAC_LINE_MUX, 6, 3, aic3x_left_dac_mux),
@@ -245,6 +248,7 @@ static const struct soc_enum aic3x_enum[] = {
 	SOC_ENUM_SINGLE(LINE2L_2_LADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_SINGLE(LINE2R_2_RADC_CTRL, 7, 2, aic3x_linein_mode_mux),
 	SOC_ENUM_DOUBLE(AIC3X_CODEC_DFILT_CTRL, 6, 4, 4, aic3x_adc_hpf),
+	SOC_ENUM_SINGLE(HPOUT_SC, 6, 4, aic3x_out_stage),
 };
 
 /*
@@ -268,6 +272,7 @@ static const struct snd_kcontrol_new aic3x_snd_controls[] = {
 	/* Output */
 	SOC_DOUBLE_R_TLV("PCM Playback Volume",
 			 LDAC_VOL, RDAC_VOL, 0, 0x7f, 1, dac_tlv),
+	SOC_ENUM("High power output", aic3x_enum[OUT_STAGE_ENUM]),
 
 	/*
 	 * Output controls that map to output mixer switches. Note these are
