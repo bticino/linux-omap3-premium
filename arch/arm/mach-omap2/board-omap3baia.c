@@ -155,9 +155,11 @@ static struct omap2_mcspi_device_config tsc2005_mcspi_config = {
 static struct zl38005_platform_data zl_config[] = {
 	[0] = {
 		.chip_select_gpio = OMAP3_BAIA_NCS5A_ZL1_CS,
+		.reset_gpio = OMAP3_BAIA_RES_ZL1_1V8,
 	},
 	[1] = {
 		.chip_select_gpio = OMAP3_BAIA_NCS4A_ZL2_CS,
+		.reset_gpio = OMAP3_BAIA_RES_ZL2_1V8,
 	}
 };
 
@@ -338,36 +340,6 @@ static void __init omap3_baia_tlv320AIC3104_init(void)
 
 err:
 	gpio_free(OMAP3_BAIA_RES_O_1V8);
-}
-
-/* ZARLINK 1,2 */
-static void __init omap3_baia_zarlink_init(void)
-{
-	if (gpio_request(OMAP3_BAIA_NCS5A_ZL1_CS, "ZL1 chip select") < 0)
-		printk(KERN_ERR "can't get zl1 cs\n");
-	gpio_direction_output(OMAP3_BAIA_NCS5A_ZL1_CS, 1);
-
-	if (gpio_request(OMAP3_BAIA_NCS4A_ZL2_CS, "ZL2 chip select") < 0)
-		printk(KERN_ERR "can't get zl2 cs\n");
-	gpio_direction_output(OMAP3_BAIA_NCS4A_ZL2_CS, 1);
-
-	if (gpio_request(OMAP3_BAIA_RES_ZL1_1V8, "ZL1 reset") < 0)
-		printk(KERN_ERR "can't get zl1 reset\n");
-	gpio_direction_output(OMAP3_BAIA_RES_ZL1_1V8, 1);
-
-	if (gpio_request(OMAP3_BAIA_RES_ZL2_1V8, "ZL2 reset") < 0)
-		printk(KERN_ERR "can't get zl2 reset\n");
-	gpio_direction_output(OMAP3_BAIA_RES_ZL2_1V8, 1);
-
-	if (gpio_request(OMAP3_BAIA_ABIL_FON_SCS, "ABIL_FON_SCS enable") < 0)
-		printk(KERN_ERR "can't get ABIL_FON_SCS enable\n");
-	gpio_direction_output(OMAP3_BAIA_ABIL_FON_SCS, 1);
-
-	if (gpio_request(OMAP3_BAIA_ABIL_FON_IP, "ABIL_FON_IP enable") < 0)
-		printk(KERN_ERR "can't get ABIL_FON_IP enable\n");
-	gpio_direction_output(OMAP3_BAIA_ABIL_FON_IP, 0);
-
-	return;
 }
 
 #if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || \
@@ -808,39 +780,9 @@ static struct tda9885_platform_data omap3baia_tda9885_platform_data = {
 	.power = OMAP3_BAIA_ABIL_DEM_VIDEO1V8,
 };
 
-/* TLV320AIC3104 id setup */
-static struct i2c_client *tlv320aic3104;
-
-static int tlv320aic3104_probe(struct i2c_client *client,
-			       const struct i2c_device_id *id)
-{
-	tlv320aic3104 = client;
-	return 0;
-}
-
-static int tlv320aic3104_remove(struct i2c_client *client)
-{
-	tlv320aic3104 = NULL;
-	return 0;
-}
-
-static const struct i2c_device_id tlv320aic3104_ids[] = {
-	{ "tlv320aic3104", 0, },
-	{ /* end of list */ },
-};
-
-static struct i2c_driver tlv320aic3104_driver = {
-	.driver.name    = "tlv320aic3104",
-	.id_table       = tlv320aic3104_ids,
-	.probe          = tlv320aic3104_probe,
-	.remove         = tlv320aic3104_remove,
-};
-
-#if 0
 static struct aic3x_pdata omap3baia_aic3x_data = {
 	.gpio_reset = OMAP3_BAIA_RES_O_1V8,
 };
-#endif
 
 static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	{
@@ -852,9 +794,7 @@ static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	},
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
-#if 0
 		.platform_data  = &omap3baia_aic3x_data,
-#endif
 	},
 	{
 		I2C_BOARD_INFO("tda9885", 0x43),
@@ -880,8 +820,6 @@ static int __init omap3_baia_i2c_init(void)
 
 	omap_register_i2c_bus(1, 2600, omap3_baia_twl_i2c_boardinfo,
 			ARRAY_SIZE(omap3_baia_twl_i2c_boardinfo));
-	/* Bus 2 is used for Camera/Sensor interface */
-	i2c_add_driver(&tlv320aic3104_driver);
 	omap_register_i2c_bus(2, 100, omap3_baia_i2c_boardinfo,
 			ARRAY_SIZE(omap3_baia_i2c_boardinfo));
 	return 0;
@@ -1044,6 +982,9 @@ static struct omap_board_mux omap36x_board_mux[] __initdata = {
 
 	/* OMAP3_BAIA_EN_AMPLI - GPIO 110 */
 	OMAP3_MUX(CAM_D11, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
+	/* OMAP3_BAIA_ABIL_SOURCE_IP1V8 - GPIO 59 */
+	OMAP3_MUX(GPMC_CLK, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
 
 	/* OMAP3_BAIA_SHTD_VIDEO_1V8 - GPIO 61 */
 	OMAP3_MUX(GPMC_NBE1, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
@@ -1216,8 +1157,6 @@ static void __init omap3_baia_init(void)
 	omap3_baia_i2c_init();
 	omap3baia_init_ks8851_mll();
 	omap3_baia_display_init();
-	omap3_baia_tlv320AIC3104_init();
-	omap3_baia_zarlink_init();
 	omap3_baia_add_gpio_keys();
 
 	if (baia_gpio_debug) {
@@ -1226,15 +1165,8 @@ static void __init omap3_baia_init(void)
 		gpio_export(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8, 0);
 		gpio_export(OMAP3_BAIA_SHTD_VIDEO_1V8, 0);
 		gpio_export(OMAP3_BAIA_EN_BL, 0);
-		gpio_export(OMAP3_BAIA_RES_O_1V8, 0);
 		gpio_export(OMAP3_BAIA_NPDEC_PWRDN, 0);
 		gpio_export(OMAP3_BAIA_TS_RESET, 0);
-		gpio_export(OMAP3_BAIA_RES_ZL1_1V8, 0);
-		gpio_export(OMAP3_BAIA_RES_ZL2_1V8, 0);
-		gpio_export(OMAP3_BAIA_NCS5A_ZL1_CS, 0);
-		gpio_export(OMAP3_BAIA_NCS4A_ZL2_CS, 0);
-		gpio_export(OMAP3_BAIA_ABIL_FON_IP, 0);
-		gpio_export(OMAP3_BAIA_ABIL_FON_SCS, 0);
 		gpio_export(OMAP3_BAIA_FACTORY_RESET_DRV, 0);
 /*
 		This commands BLOCK the kernel startup
