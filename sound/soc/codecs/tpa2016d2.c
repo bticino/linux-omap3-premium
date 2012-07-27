@@ -133,8 +133,10 @@ static int tpa2016d2_shutdown(int shutdown)
 	mutex_lock(&data->mutex);
 	if (!shutdown && data->shutdown_state) {
 		/* Oerative State */
-		if (data->shutdown_gpio >= 0)
+		if (data->shutdown_gpio >= 0) {
 			gpio_set_value(data->shutdown_gpio, 1);
+			mdelay(1);
+		}
 
 		data->shutdown_state = 0;
 		ret = tpa2016d2_initialize();
