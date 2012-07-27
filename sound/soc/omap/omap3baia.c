@@ -23,6 +23,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <plat/mcbsp.h>
+#include <sound/zl38005.h>
 
 #include <asm/mach-types.h>
 
@@ -31,14 +32,13 @@
 #include "../codecs/tlv320aic3x.h"
 #include "../codecs/zl38005.h"
 #include "../codecs/tpa2016d2.h"
+#include "../../../arch/arm/mach-omap2/board-omap3baia.h"
 
 #define CODEC_SYS_FREQ 13000000
 
 static int omap3baia_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
 
 	snd_pcm_hw_constraint_minmax(runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS, 2, 2);
@@ -80,11 +80,18 @@ static struct snd_soc_ops omap3baia_ops = {
 };
 
 static const struct snd_soc_dapm_widget aic31_dapm_widgets[] = {
+	SND_SOC_DAPM_SPK("TPA2016D2 Left", NULL),
+	SND_SOC_DAPM_SPK("TPA2016D2 Right", NULL),
 	SND_SOC_DAPM_MIC("DMic", NULL),
-	SND_SOC_DAPM_LINE("Line Out", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
+	/*
+	 * From tlv320aic3x output (HPLOUT)
+	 * to TPA2016D2 input (TPA2016D2 Left)
+	 */
+	{"TPA2016D2 Left", NULL, "HPLOUT"},
+	{"TPA2016D2 Right", NULL, "HPROUT"},
 	{"DMic Rate 64", NULL, "Mic Bias 2V"},
 	{"Mic Bias 2V", NULL, "DMic"},
 };
@@ -92,17 +99,30 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-	int err;
 
 	/* Set up NC codec pins */
 	snd_soc_dapm_nc_pin(codec, "MIC3L");
 	snd_soc_dapm_nc_pin(codec, "MIC3R");
-//	snd_soc_dapm_nc_pin(codec, "LINE1R");
 
 	snd_soc_dapm_new_controls(codec, aic31_dapm_widgets,
 				  ARRAY_SIZE(aic31_dapm_widgets));
 
 	tpa2016d2_add_controls(codec);
+	zl38005_add_controls(0, codec);
+	zl38005_add_controls(1, codec);
+
+	if (gpio_request(OMAP3_BAIA_ABIL_FON_SCS, "ABIL_FON_SCS enable") < 0)
+			 printk(KERN_ERR "can't get ABIL_FON_SCS enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_FON_SCS, 1);
+	gpio_export(OMAP3_BAIA_ABIL_FON_SCS, 0);
+	if (gpio_request(OMAP3_BAIA_ABIL_FON_IP, "ABIL_FON_IP enable") < 0)
+		printk(KERN_ERR "can't get ABIL_FON_IP enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_FON_IP, 1);
+	gpio_export(OMAP3_BAIA_ABIL_FON_IP, 0);
+	if (gpio_request(OMAP3_BAIA_ABIL_SOURCE_IP1V8, "ABIL_SOURCE_IP enable") < 0)
+		printk(KERN_ERR "can't get ABIL_SOURCE_IP enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+	gpio_export(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
