@@ -261,6 +261,22 @@ static ssize_t gpio_direction_store(struct device *dev,
 static /* const */ DEVICE_ATTR(direction, 0644,
 		gpio_direction_show, gpio_direction_store);
 
+static ssize_t gpio_name_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	const struct gpio_desc	*desc = dev_get_drvdata(dev);
+	int ret = 0;
+
+#ifdef CONFIG_DEBUG_FS
+	ret = sprintf(buf, "%s\n", desc->label ? : "?");
+#endif
+
+	return ret;
+}
+
+static DEVICE_ATTR(name, 0444,
+		gpio_name_show, NULL);
+
 static ssize_t gpio_value_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -544,6 +560,7 @@ static const DEVICE_ATTR(active_low, 0644,
 static const struct attribute *gpio_attrs[] = {
 	&dev_attr_value.attr,
 	&dev_attr_active_low.attr,
+	&dev_attr_name.attr,
 	NULL,
 };
 
