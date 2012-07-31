@@ -36,5 +36,13 @@
 #define PAL_NUM_ACTIVE_PIXELS		(720)
 #define PAL_NUM_ACTIVE_LINES		(576)
 
+/**
+ * struct tvp515x_platform_data - Platform data values and access functions.
+ * @power_set: Power state access function, zero is off, non-zero is on.
+ */
+struct tvp515x_platform_data {
+	int (*s_power) (struct v4l2_subdev *subdev, u32 on);
+};
+
 #endif
 

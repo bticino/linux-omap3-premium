@@ -110,6 +110,8 @@ static const struct tvp5150_std_info tvp5150_std_list[] = {
 
 struct tvp5150 {
 	struct v4l2_subdev sd;
+	const struct tvp515x_platform_data *pdata;
+
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
 
@@ -324,7 +326,6 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	int input = 0;
-	unsigned char val;
 
 	if ((decoder->output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
@@ -346,11 +347,6 @@ static inline void tvp5150_selmux(struct v4l2_subdev *sd)
 			"=> tvp5150 input=%i, opmode=%i\n",
 			decoder->input, decoder->output,
 			input, opmode);
-	printk("Selecting video route: route input=%i, output=%i "
-			"=> tvp5150 input=%i, opmode=%i\n",
-			decoder->input, decoder->output,
-			input, opmode);
-
 	tvp5150_write(sd, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(sd, TVP5150_VD_IN_SRC_SEL_1, input);
 };
@@ -810,8 +806,6 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 
 static int tvp5150_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	struct tvp5150 *decoder = to_tvp5150(sd);
-
 	return tvp5150_set_std(sd, std);
 }
 
@@ -954,6 +948,16 @@ static int tvp5150_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int tvp515x_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+
+	if (decoder->pdata && decoder->pdata->s_power)
+		return decoder->pdata->s_power(sd, on);
+	return 0;
+}
+
+
 /**
  * tvp5150_querystd() - V4L2 decoder interface handler for querystd
  * @sd: pointer to standard V4L2 sub-device structure
@@ -965,6 +969,8 @@ static int tvp5150_s_routing(struct v4l2_subdev *sd,
 static int tvp5150_querystd(struct v4l2_subdev *sd, v4l2_std_id *std_id)
 {
 	enum tvp5150_std current_std;
+
+	tvp515x_s_power(sd, 1);
 
 	if (std_id == NULL)
 		return -EINVAL;
@@ -1193,6 +1199,7 @@ static const struct v4l2_subdev_core_ops tvp5150_core_ops = {
 	.s_std = tvp5150_s_std,
 	.reset = tvp5150_reset,
 	.g_chip_ident = tvp5150_g_chip_ident,
+	.s_power = tvp515x_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = tvp5150_g_register,
 	.s_register = tvp5150_s_register,
@@ -1274,7 +1281,6 @@ static int tvp5150_probe(struct i2c_client *c,
 		return ret;
 	}
 
-#if 1
 	msb_id = tvp5150_read(sd, TVP5150_MSB_DEV_ID);
 	lsb_id = tvp5150_read(sd, TVP5150_LSB_DEV_ID);
 	msb_rom = tvp5150_read(sd, TVP5150_ROM_MAJOR_VER);
@@ -1313,7 +1319,6 @@ static int tvp5150_probe(struct i2c_client *c,
 		v4l2_info(sd, "*** unknown device id detected.\n");
 		break;
         }
-#endif
 
 	core->input = TVP5150_COMPOSITE0;
 	core->enable = 1;
