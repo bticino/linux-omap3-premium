@@ -28,6 +28,7 @@
 
 #include <media/tvp5150.h>
 #include <linux/i2c/tda9885.h>
+#include <media/tvp5150.h>
 
 #include <../drivers/media/video/isp/isp.h>
 
@@ -110,11 +111,30 @@ static struct isp_platform_data omap3baia_isp_platform_data = {
 static int __init omap3baia_cam_init(void)
 {
 	/* DEM is enabled */
-        if (gpio_request(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, "Video DEM enable pin") < 0)
-                printk(KERN_ERR "can't get video DEM GPIO\n");
-        gpio_direction_output(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0);
-	gpio_export(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0); /* danger */
-//	omap_mux_init_gpio(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, OMAP_PIN_OUTPUT);
+	if (gpio_request(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, "Video DEM enable pin") < 0)
+		printk(KERN_ERR "can't get video DEM GPIO\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0);
+	gpio_export(OMAP3_BAIA_ABIL_DEM_VIDEO1V8, 0);
+
+	if (gpio_request(OMAP3_BAIA_NPDEC_PWRDN, "tvp5151 pdn") < 0) {
+		printk(KERN_ERR "Failed to request GPIO%d tvp5151 pdn\n",
+			   OMAP3_BAIA_NPDEC_PWRDN);
+		return -ENODEV;
+	}
+	gpio_direction_output(OMAP3_BAIA_NPDEC_PWRDN, 1);
+	gpio_export(OMAP3_BAIA_NPDEC_PWRDN, 0);
+	mdelay(20);
+	if (gpio_request(OMAP3_BAIA_TPS_PDEC_RES, "tvp5151 reset") < 0) {
+		printk(KERN_ERR "Failed to request GPIO%d tvp5151 reset\n",
+			   OMAP3_BAIA_TPS_PDEC_RES);
+		return -ENODEV;
+	}
+	gpio_export(OMAP3_BAIA_TPS_PDEC_RES, 0);
+
+	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 0);
+	mdelay(1); /* 500nsec are enough */
+	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 1);
+	mdelay(1);
 
 	omap3_init_camera(&omap3baia_isp_platform_data);
 

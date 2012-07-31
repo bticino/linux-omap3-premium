@@ -571,20 +571,6 @@ static int omap3_baia_twl_gpio_setup(struct device *dev,
 	 * OMAP3_BAIA_TPS_PULS4,
 	 */
 
-	if (gpio_request(OMAP3_BAIA_NPDEC_PWRDN, "tvp5151 pdn") < 0) {
-		printk(KERN_ERR "Failed to request GPIO%d tvp5151 pdn\n",
-			OMAP3_BAIA_NPDEC_PWRDN);
-		return -ENODEV;
-	}
-	gpio_direction_output(OMAP3_BAIA_NPDEC_PWRDN, 1);
-	mdelay(20);
-	gpio_request(OMAP3_BAIA_TPS_PDEC_RES, "vid-dec #reset");
-	/* TODO now is always on */
-	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 0);
-	mdelay(1); /* 500nsec are enough */
-	gpio_direction_output(OMAP3_BAIA_TPS_PDEC_RES, 1);
-	mdelay(1);
-
 	platform_device_register(&leds_gpio);
 	return 0;
 }
