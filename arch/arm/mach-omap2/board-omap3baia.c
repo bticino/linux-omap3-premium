@@ -322,26 +322,6 @@ err:
 	gpio_free(OMAP3_BAIA_LCD_PANEL_ENVIDEO_1V8);
 }
 
-/* TLV320AIC3104: reset */
-static void __init omap3_baia_tlv320AIC3104_init(void)
-{
-	int r;
-
-	r = gpio_request(OMAP3_BAIA_RES_O_1V8,
-			 "tlv320AIC3104_res_o_1v8");
-	if (r) {
-		printk(KERN_ERR "failed to get tlv320AIC3104_res_o_1v8\n");
-		goto err;
-	}
-	gpio_direction_output(OMAP3_BAIA_RES_O_1V8, 0);
-	mdelay(1);	/* only 10nsec are required */
-	gpio_direction_output(OMAP3_BAIA_RES_O_1V8, 1);
-	return;
-
-err:
-	gpio_free(OMAP3_BAIA_RES_O_1V8);
-}
-
 #if defined(CONFIG_PANEL_CPT_CLAA102NA0DCW) || \
 	    defined(CONFIG_PANEL_AUO_B101EW05)
 
