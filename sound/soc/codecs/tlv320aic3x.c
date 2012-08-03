@@ -1388,6 +1388,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		if (ret != 0)
 			goto err_gpio;
 		gpio_direction_output(aic3x->gpio_reset, 0);
+		gpio_export(aic3x->gpio_reset, 0);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(aic3x->supplies); i++)
