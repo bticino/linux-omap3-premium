@@ -119,10 +119,6 @@ static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 		printk(KERN_ERR "can't get ABIL_FON_IP enable\n");
 	gpio_direction_output(OMAP3_BAIA_ABIL_FON_IP, 1);
 	gpio_export(OMAP3_BAIA_ABIL_FON_IP, 0);
-	if (gpio_request(OMAP3_BAIA_ABIL_SOURCE_IP1V8, "ABIL_SOURCE_IP enable") < 0)
-		printk(KERN_ERR "can't get ABIL_SOURCE_IP enable\n");
-	gpio_direction_output(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
-	gpio_export(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
 
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
