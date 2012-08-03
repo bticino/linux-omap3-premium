@@ -36,6 +36,7 @@
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
+#include "../../../arch/arm/mach-omap2/board-omap3baia.h"
 
 static int omap3baia_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
@@ -100,6 +101,56 @@ static int omap3baia_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int tps_to_tsh_spk_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *k, int event)
+{
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		gpio_set_value(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 1);
+	else
+		gpio_set_value(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+
+	return 0;
+}
+
+static const struct snd_soc_dapm_widget twl_dapm_widgets[] = {
+	SND_SOC_DAPM_LINE("TSH512 in", tps_to_tsh_spk_event),
+};
+
+static const struct snd_soc_dapm_route audio_map[] = {
+	/*
+	 * From tps65951 output (ihf left and right)
+	 * to TSH512 inputs
+	 */
+	{"TSH512 in", NULL, "HandsfreeL PGA"},
+	{"TSH512 in", NULL, "HandsfreeR PGA"},
+};
+
+static int omap3baia_twl_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	int ret;
+
+	/* TPS65951 not connected pins */
+	snd_soc_dapm_nc_pin(codec, "HSMIC");
+	snd_soc_dapm_nc_pin(codec, "HSOL");
+	snd_soc_dapm_nc_pin(codec, "HSOR");
+
+	snd_soc_dapm_new_controls(codec, twl_dapm_widgets,
+				  ARRAY_SIZE(twl_dapm_widgets));
+
+	ret = gpio_request(OMAP3_BAIA_ABIL_SOURCE_IP1V8,
+			   "ABIL_SOURCE_IP enable");
+	if (ret < 0)
+		printk(KERN_ERR "can't get ABIL_SOURCE_IP enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+	gpio_export(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+
+	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+
+	snd_soc_dapm_sync(codec);
+
+	return 0;
+}
 static struct snd_soc_ops omap3baia_ops = {
 	.hw_params = omap3baia_hw_params,
 };
@@ -112,6 +163,7 @@ static struct snd_soc_dai_link omap3baia_dai = {
 	.platform_name = "omap-pcm-audio",
 	.codec_dai_name = "twl4030-hifi",
 	.codec_name = "twl4030-codec",
+	.init = omap3baia_twl_init,
 	.ops = &omap3baia_ops,
 };
 
@@ -129,7 +181,7 @@ static int __init omap3baia_soc_init(void)
 {
 	int ret;
 
-	if (!(machine_is_omap3_baia() || machine_is_devkit8000()))
+	if (!machine_is_omap3_baia())
 		return -ENODEV;
 	pr_info("OMAP3 Baia SoC init\n");
 
