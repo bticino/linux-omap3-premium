@@ -59,6 +59,7 @@
 #include <linux/spi/zl38005.h>
 #include <sound/tpa2016d2-plat.h>
 #include <sound/tlv320aic3x.h>
+#include <linux/mcp453x.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -750,6 +751,16 @@ static struct aic3x_pdata omap3baia_aic3x_data = {
 	.gpio_reset = OMAP3_BAIA_RES_O_1V8,
 };
 
+static struct mcp453x_platform_data omap3baia_mcp453x_2e_data = {
+	.volatile_wiper0 = 0x5b,
+	.volatile_tcon = 0xf,
+};
+
+static struct mcp453x_platform_data omap3baia_mcp453x_2f_data = {
+	.volatile_wiper0 = 0x78,
+	.volatile_tcon = 0xf,
+};
+
 static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("24c256", 0x53),
@@ -770,7 +781,14 @@ static struct i2c_board_info __initdata omap3_baia_i2c_boardinfo[] = {
 		I2C_BOARD_INFO("tpa2016d2", 0x58),
 		.platform_data  = &omap3baia_tpa2016d2_platform_data,
 	},
-
+	{
+		I2C_BOARD_INFO("mcp453x", 0x2e),
+		.platform_data  = &omap3baia_mcp453x_2e_data,
+	},
+	{
+		I2C_BOARD_INFO("mcp453x", 0x2f),
+		.platform_data  = &omap3baia_mcp453x_2f_data,
+	},
 };
 
 static int __init omap3_baia_i2c_init(void)
