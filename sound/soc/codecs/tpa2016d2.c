@@ -307,8 +307,8 @@ static int tpa2016d2_startup_event(struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-/* -28dB to 30db in 3dB steps */
-static const DECLARE_TLV_DB_SCALE(fixed_ampli_tlv, -2800, 300, 3000);
+/* 0dB to 30db in 3dB steps (compression not enabled) */
+static const DECLARE_TLV_DB_SCALE(fixed_ampli_tlv, 0, 100, 3000);
 
 /* Linear scale between 0.1067ms to 6.722ms: 0.1067ms every step */
 static const unsigned int atk_time_tlv[] = {
@@ -346,7 +346,7 @@ static const struct snd_kcontrol_new tpa2016d2_controls[] = {
 		   TPA2016D2_REG_AGC_CONTROL, TPA2016D2_OUT_LIM_EN, 1, 1,
 		   tpa2016d2_get_reg, tpa2016d2_put_reg),
 	SOC_SINGLE_EXT_TLV("TPA2016D2 Gain",
-			   TPA2016D2_REG_AGC_FIXED_GAIN, 0, 0x3f, 0,
+			   TPA2016D2_REG_AGC_FIXED_GAIN, 0, 0x1e, 0,
 			   tpa2016d2_get_reg, tpa2016d2_put_reg,
 			   fixed_ampli_tlv),
 	SOC_SINGLE_EXT_TLV("TPA2016D2 ATK Time",
