@@ -60,5 +60,6 @@
 #define TPA2016D2_REG_AGC_FIXED_GAIN_24DB 0x18
 
 extern int tpa2016d2_add_controls(struct snd_soc_codec *codec);
+extern int tpa2016d2_shutdown(int shutdown);
 
 #endif /* __TPA6130A2_H__ */

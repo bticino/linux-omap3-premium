@@ -121,7 +121,7 @@ static int tpa2016d2_initialize(void)
 	return ret;
 }
 
-static int tpa2016d2_shutdown(int shutdown)
+int tpa2016d2_shutdown(int shutdown)
 {
 	struct	tpa2016d2_data *data;
 	u8	val;
@@ -170,6 +170,7 @@ exit:
 	mutex_unlock(&data->mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(tpa2016d2_shutdown);
 
 static int tpa2016d2_get_reg(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
