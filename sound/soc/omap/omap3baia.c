@@ -36,7 +36,7 @@
 
 #define CODEC_SYS_FREQ 13000000
 
-static int omap3baia_startup(struct snd_pcm_substream *substream)
+static int omap3baia_startup_tlvaic31(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -45,7 +45,7 @@ static int omap3baia_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int omap3baia_hw_params(struct snd_pcm_substream *substream,
+static int omap3baia_hw_params_tlvaic31(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -74,9 +74,9 @@ static int omap3baia_hw_params(struct snd_pcm_substream *substream,
 				      SND_SOC_CLOCK_IN);
 }
 
-static struct snd_soc_ops omap3baia_ops = {
-	.startup = omap3baia_startup,
-	.hw_params = omap3baia_hw_params,
+static struct snd_soc_ops omap3baia_tlvaic31_ops = {
+	.startup = omap3baia_startup_tlvaic31,
+	.hw_params = omap3baia_hw_params_tlvaic31,
 };
 
 static const struct snd_soc_dapm_widget aic31_dapm_widgets[] = {
@@ -96,7 +96,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Bias 2V", NULL, "DMic"},
 };
 
-static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
+static int omap3baia_tlvaic31_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 
@@ -123,6 +123,17 @@ static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
 	snd_soc_dapm_sync(codec);
+
+	return 0;
+}
+
+static int tps_to_tsh_spk_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *k, int event)
+{
+	if (SND_SOC_DAPM_EVENT_ON(event))
+		gpio_set_value(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 1);
+	else
+		gpio_set_value(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
 
 	return 0;
 }
@@ -192,6 +203,123 @@ static const struct snd_kcontrol_new baia_audio_controls[] = {
                         baia_get_audio_mode, baia_set_audio_mode),
 };
 
+static const struct snd_soc_dapm_widget dapm_widgets_twl4030[] = {
+	SND_SOC_DAPM_LINE("TSH512 in", tps_to_tsh_spk_event),
+};
+
+static const struct snd_soc_dapm_route audio_map_twl4030[] = {
+	/*
+	 * From tps65951 output (ihf left and right)
+	 * to TSH512 inputs
+	 */
+	{"TSH512 in", NULL, "HandsfreeL PGA"}, /* go out to difson */
+	{"TSH512 in", NULL, "HandsfreeR PGA"},
+};
+
+static int omap3baia_twl4030_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	/* TPS65951 not connected pins */
+	snd_soc_dapm_nc_pin(codec, "HSMIC");
+	snd_soc_dapm_nc_pin(codec, "HSOL");
+	snd_soc_dapm_nc_pin(codec, "HSOR");
+
+	snd_soc_dapm_new_controls(codec, dapm_widgets_twl4030,
+				  ARRAY_SIZE(dapm_widgets_twl4030));
+
+	ret = gpio_request(OMAP3_BAIA_ABIL_SOURCE_IP1V8,
+			   "ABIL_SOURCE_IP enable");
+	if (ret < 0)
+		printk(KERN_ERR "can't get ABIL_SOURCE_IP enable\n");
+	gpio_direction_output(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+	gpio_export(OMAP3_BAIA_ABIL_SOURCE_IP1V8, 0);
+
+	snd_soc_dapm_add_routes(codec, audio_map_twl4030,
+				ARRAY_SIZE(audio_map_twl4030));
+
+	snd_soc_dapm_sync(codec);
+
+	/* Add virtual switch */
+	ret = snd_soc_add_controls(codec, baia_audio_controls,
+					ARRAY_SIZE(baia_audio_controls));
+	if (ret)
+		dev_warn(card->dev,
+				"Failed to register audio mode control, "
+				"will continue without it.\n");
+
+	return 0;
+}
+
+static int omap3baia_hw_params_twl4030(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	unsigned int fmt;
+	int ret;
+
+	switch (params_channels(params)) {
+	case 2: /* Stereo I2S mode */
+		fmt =	SND_SOC_DAIFMT_I2S |
+			SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBM_CFM;
+		break;
+	case 4: /* Four channel TDM mode */
+		fmt =	SND_SOC_DAIFMT_DSP_B |
+			SND_SOC_DAIFMT_IB_NF |
+			SND_SOC_DAIFMT_CBM_CFM;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Set codec DAI configuration */
+	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
+	if (ret < 0) {
+		printk(KERN_ERR "can't set codec DAI configuration\n");
+		return ret;
+	}
+
+	/* Set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	if (ret < 0) {
+		printk(KERN_ERR "can't set cpu DAI configuration\n");
+		return ret;
+	}
+
+	/* Set the codec system clock for DAC and ADC */
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 26000000,
+				     SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		printk(KERN_ERR "can't set codec system clock\n");
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(cpu_dai, OMAP_MCBSP_SYSCLK_CLKX_EXT,
+				     256 * params_rate(params),
+				     SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		pr_err(KERN_ERR "can't set cpu system clock\n");
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_clkdiv(cpu_dai, OMAP_MCBSP_CLKGDV, 8);
+	if (ret < 0) {
+		pr_err(KERN_ERR "can't set SRG clock divider\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static struct snd_soc_ops omap3baia_twl4030_ops = {
+	.hw_params = omap3baia_hw_params_twl4030,
+};
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link omap3baia_dai[] = {
 	{
@@ -201,8 +329,18 @@ static struct snd_soc_dai_link omap3baia_dai[] = {
 		.codec_dai_name = "tlv320aic3x-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "tlv320aic3x-codec.2-0018",
-		.init = omap3baia_aic31_init,
-		.ops = &omap3baia_ops,
+		.init = omap3baia_tlvaic31_init,
+		.ops = &omap3baia_tlvaic31_ops,
+	},
+	{
+		.name = "TWL4030",
+		.stream_name = "TWL4030",
+		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.platform_name = "omap-pcm-audio",
+		.codec_dai_name = "twl4030-hifi",
+		.codec_name = "twl4030-codec",
+		.init = omap3baia_twl4030_init,
+		.ops = &omap3baia_twl4030_ops,
 	},
 };
 

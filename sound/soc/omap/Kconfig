@@ -36,10 +36,11 @@ config SND_OMAP_SOC_OMAP3_BAIA
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_TPA2016D2
 	select SND_SOC_ZL38005
+	select SND_SOC_TWL4030
 
 	help
 	  Say Y if you want to add support for SoC audio on the omap3_baia
-	  board trough aic34 codec.
+	  board trough tlvaic3104 twl4030 codecs
 
 config SND_OMAP_SOC_OMAP3_BAIA_TWL
 	tristate "SoC Audio support for OMAP3_BAIA board through twl4030"
