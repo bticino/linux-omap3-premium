@@ -127,6 +127,71 @@ static int omap3baia_aic31_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+#define BAIA_DISABLED_MODE	0
+#define BAIA_IP_MODE		1
+#define BAIA_SCS_MODE		2
+
+static int baia_audio_mode_val = BAIA_DISABLED_MODE;
+
+static int baia_set_audio_mode(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct soc_enum *control = (struct soc_enum *)kcontrol->private_value;
+	int ret;
+
+	if (ucontrol->value.enumerated.item[0] >= control->max)
+		return -EINVAL;
+
+	mutex_lock(&codec->mutex);
+
+	switch (ucontrol->value.enumerated.item[0]) {
+        case BAIA_DISABLED_MODE:
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 1);
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 1);
+		ret = tpa2016d2_shutdown(1);
+		break;
+        case BAIA_IP_MODE:
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 1);
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 0);
+		ret = tpa2016d2_shutdown(0);
+                break;
+        case BAIA_SCS_MODE:
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 1);
+		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 0);
+		ret = tpa2016d2_shutdown(0);
+                break;
+        }
+
+	baia_audio_mode_val = ucontrol->value.enumerated.item[0];
+
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
+
+static int baia_get_audio_mode(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = baia_audio_mode_val;
+
+	return 0;
+}
+
+/* Board audio paths */
+static const char *baia_audio_mode[] =
+        {"Off mode", "IP mode", "SCS mode"};
+
+static const struct soc_enum baia_audio_enum[] = {
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(baia_audio_mode),
+			    baia_audio_mode),
+};
+
+static const struct snd_kcontrol_new baia_audio_controls[] = {
+        SOC_ENUM_EXT("Baia Audio Mode", baia_audio_enum[0],
+                        baia_get_audio_mode, baia_set_audio_mode),
+};
+
 /* Digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link omap3baia_dai[] = {
 	{
