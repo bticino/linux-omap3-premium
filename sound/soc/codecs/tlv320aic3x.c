@@ -1360,6 +1360,10 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	snd_soc_write(codec, LINE2L_2_MONOLOPM_VOL, DEFAULT_VOL);
 	snd_soc_write(codec, LINE2R_2_MONOLOPM_VOL, DEFAULT_VOL);
 
+	/* Line2 Left to Left, Line2 Right to Right */
+	snd_soc_write(codec, MIC3LR_2_LADC_CTRL, 0x8f);
+	snd_soc_write(codec, MIC3LR_2_RADC_CTRL, 0xf8);
+
 	if (aic3x->model == AIC3X_MODEL_3007) {
 		aic3x_init_3007(codec);
 		snd_soc_write(codec, CLASSD_CTRL, 0);
