@@ -267,7 +267,8 @@ int spi_add_device(struct spi_device *spi)
 	int status;
 
 	/* Chipselects are numbered 0..max; validate. */
-	if (spi->chip_select >= spi->master->num_chipselect) {
+	if ((spi->chip_select_gpio == 0) &&
+			(spi->chip_select >= spi->master->num_chipselect)) {
 		dev_err(dev, "cs%d >= max %d\n",
 			spi->chip_select,
 			spi->master->num_chipselect);
@@ -353,6 +354,7 @@ struct spi_device *spi_new_device(struct spi_master *master,
 	WARN_ON(strlen(chip->modalias) >= sizeof(proxy->modalias));
 
 	proxy->chip_select = chip->chip_select;
+	proxy->chip_select_gpio = chip->chip_select_gpio;
 	proxy->max_speed_hz = chip->max_speed_hz;
 	proxy->mode = chip->mode;
 	proxy->irq = chip->irq;
