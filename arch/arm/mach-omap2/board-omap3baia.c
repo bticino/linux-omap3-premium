@@ -155,11 +155,11 @@ static struct omap2_mcspi_device_config tsc2005_mcspi_config = {
 
 static struct zl38005_platform_data zl_config[] = {
 	[0] = {
-		.chip_select_gpio = OMAP3_BAIA_NCS5A_ZL1_CS,
+		.minor = 0,
 		.reset_gpio = OMAP3_BAIA_RES_ZL1_1V8,
 	},
 	[1] = {
-		.chip_select_gpio = OMAP3_BAIA_NCS4A_ZL2_CS,
+		.minor = 1,
 		.reset_gpio = OMAP3_BAIA_RES_ZL2_1V8,
 	}
 };
@@ -177,9 +177,20 @@ static struct spi_board_info omap3_baia_spi_board_info[] = {
 	[1] = {
 		.modalias		= "zl38005",
 		.bus_num		= 4,
+		.chip_select_gpio	= OMAP3_BAIA_NCS5A_ZL1_CS,
+		.chip_select		= 0,
 		.max_speed_hz		= 2 * 1000 * 1000,
 		.mode			= SPI_MODE_0,
-		.platform_data          = zl_config,
+		.platform_data          = &zl_config[0],
+	},
+	[2] = {
+		.modalias		= "zl38005",
+		.bus_num		= 4,
+		.chip_select_gpio	= OMAP3_BAIA_NCS4A_ZL2_CS,
+		.chip_select		= 1,
+		.max_speed_hz		= 2 * 1000 * 1000,
+		.mode			= SPI_MODE_0,
+		.platform_data          = &zl_config[1],
 	},
 };
 
