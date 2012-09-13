@@ -96,20 +96,74 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Bias 2V", NULL, "DMic"},
 };
 
+/* Tpa power */
+
+#define BAIA_TPA_OFF	0
+#define BAIA_TPA_ON	1
+
+static int baia_tpa_on = BAIA_TPA_OFF;
+
+static int baia_tpa_set_audio_mode(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct soc_enum *control = (struct soc_enum *)kcontrol->private_value;
+	int ret;
+
+	if (ucontrol->value.enumerated.item[0] >= control->max)
+		return -EINVAL;
+
+	mutex_lock(&codec->mutex);
+
+	switch (ucontrol->value.enumerated.item[0]) {
+	case BAIA_TPA_OFF:
+		ret = tpa2016d2_shutdown(1);
+		break;
+	case BAIA_TPA_ON:
+	default:
+		ret = tpa2016d2_shutdown(0);
+		break;
+	}
+
+	baia_tpa_on = ucontrol->value.enumerated.item[0];
+
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
+
+static int baia_tpa_get_audio_mode(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = baia_tpa_on;
+
+	return 0;
+}
+
+static const char *baia_tpa_audio_mode[] = {
+	"Off", "On"
+};
+
+static const struct soc_enum baia_tpa_audio_enum[] = {
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(baia_tpa_audio_mode),
+			    baia_tpa_audio_mode),
+};
+
+static const struct snd_kcontrol_new baia_tlv_audio_controls[] = {
+	SOC_ENUM_EXT("Baia Tpa Power", baia_tpa_audio_enum[0],
+		     baia_tpa_get_audio_mode, baia_tpa_set_audio_mode),
+};
+
 static int omap3baia_tlvaic31_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
-
-	/* Set up NC codec pins */
-	snd_soc_dapm_nc_pin(codec, "MIC3L");
-	snd_soc_dapm_nc_pin(codec, "MIC3R");
+	struct snd_soc_card *card = rtd->card;
+	int ret;
 
 	snd_soc_dapm_new_controls(codec, aic31_dapm_widgets,
 				  ARRAY_SIZE(aic31_dapm_widgets));
 
 	tpa2016d2_add_controls(codec);
-	zl38005_add_controls(0, codec);
-	zl38005_add_controls(1, codec);
 
 	if (gpio_request(OMAP3_BAIA_ABIL_FON_SCS, "ABIL_FON_SCS enable") < 0)
 			 printk(KERN_ERR "can't get ABIL_FON_SCS enable\n");
@@ -124,7 +178,17 @@ static int omap3baia_tlvaic31_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_sync(codec);
 
-	return 0;
+	zl38005_add_controls(0, codec);
+	zl38005_add_controls(1, codec);
+
+	/* Add Tlv audio controls */
+	ret = snd_soc_add_controls(codec, baia_tlv_audio_controls,
+					ARRAY_SIZE(baia_tlv_audio_controls));
+	if (ret)
+		dev_warn(card->dev,
+				"Failed to register tlv analog paths control, "
+				"will continue without it.\n");
+	return ret;
 }
 
 static int tps_to_tsh_spk_event(struct snd_soc_dapm_widget *w,
@@ -138,6 +202,8 @@ static int tps_to_tsh_spk_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+/* Board audio paths */
+
 #define BAIA_DISABLED_MODE	0
 #define BAIA_IP_MODE		1
 #define BAIA_SCS_MODE		2
@@ -149,7 +215,6 @@ static int baia_set_audio_mode(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
 	struct soc_enum *control = (struct soc_enum *)kcontrol->private_value;
-	int ret;
 
 	if (ucontrol->value.enumerated.item[0] >= control->max)
 		return -EINVAL;
@@ -160,17 +225,14 @@ static int baia_set_audio_mode(struct snd_kcontrol *kcontrol,
         case BAIA_DISABLED_MODE:
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 1);
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 1);
-		ret = tpa2016d2_shutdown(1);
 		break;
         case BAIA_IP_MODE:
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 1);
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 0);
-		ret = tpa2016d2_shutdown(0);
                 break;
         case BAIA_SCS_MODE:
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_IP, 1);
 		gpio_set_value(OMAP3_BAIA_ABIL_FON_SCS, 0);
-		ret = tpa2016d2_shutdown(0);
                 break;
         }
 
@@ -178,7 +240,7 @@ static int baia_set_audio_mode(struct snd_kcontrol *kcontrol,
 
 	mutex_unlock(&codec->mutex);
 
-	return ret;
+	return 0;
 }
 
 static int baia_get_audio_mode(struct snd_kcontrol *kcontrol,
@@ -189,7 +251,6 @@ static int baia_get_audio_mode(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/* Board audio paths */
 static const char *baia_audio_mode[] =
         {"Off mode", "IP mode", "SCS mode"};
 
