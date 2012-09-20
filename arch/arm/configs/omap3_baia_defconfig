@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux/arm 2.6.37 Kernel Configuration
-# Thu Sep 13 16:57:55 2012
+# Wed Sep 19 11:30:11 2012
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1686,7 +1686,7 @@ CONFIG_OMAP2_VENC_OUT_TYPE_SVIDEO=y
 CONFIG_OMAP2_DSS_MIN_FCK_PER_PCK=1
 CONFIG_FB_OMAP2=y
 # CONFIG_FB_OMAP2_DEBUG_SUPPORT is not set
-CONFIG_FB_OMAP2_NUM_FBS=1
+CONFIG_FB_OMAP2_NUM_FBS=3
 
 #
 # OMAP2/3 Display Device Drivers
